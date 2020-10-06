@@ -10,21 +10,9 @@
 
 ![输入图片说明](http://www-x-huidong-x-xyz.img.abc188.com/ueditor/php/upload/image/20201005/1601900534670478.png "在这里输入图片标题")
 
-
-这是一个与门：
-![输入图片说明](http://www.huidong.xyz/ueditor/php/upload/image/20201005/1601902067919244.png "在这里输入图片标题")
-![输入图片说明](http://www.huidong.xyz/ueditor/php/upload/image/20201005/1601902068135326.png "在这里输入图片标题")
-
-以及独具特色的交叉排线板，他的出现是由于平面红石电路无法交叉：
-
-![输入图片说明](http://www.huidong.xyz/ueditor/php/upload/image/20201005/1601903120136427.png "在这里输入图片标题")
-![输入图片说明](http://www.huidong.xyz/ueditor/php/upload/image/20201005/1601903123106606.png "在这里输入图片标题")
-
-他会使上下方向和左右方向的电流错开，以便线路交叉。
-
-
 尽管这个模拟器是平面的，但他仍然可以实现许多在Minecraft中可以实现的东西。
 
+更多请看 http://www.huidong.xyz/?mode=2&id=164
 
 此外，程序还可以导入和导出项目（save语句），也可以将一个项目作为当前项目的子项目导入（import语句），详见帮助（help指令）。
 
