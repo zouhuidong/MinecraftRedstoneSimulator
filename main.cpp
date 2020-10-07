@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////
 //
-//	MCRedstoneVirtualBox
+//	MCRedstoneSimulate
 //	main.cpp
 //	我的世界红石模拟器
-//	by huidong 2020.10.5 <mailkey@yeah.net>
+//	by huidong 2020.10.7 <mailkey@yeah.net>
 //
 
 
@@ -14,7 +14,7 @@
 #include <thread>
 
 // 版本信息
-char m_str_version[] = { "Version 1.0 正式版" };
+char m_str_version[] = { "Version 1.1" };
 
 //
 //    ___________________________________________________________________
@@ -25,7 +25,8 @@ char m_str_version[] = { "Version 1.0 正式版" };
 //   |      / !\    Warning                                              |
 //   |     /____\                                                        |
 //   |                如果项目有更新，请更新 main.cpp 顶部的注释上的时间，   |
-//   |                m_str_version 上的版本，HelpMenu函数上的更新日志。    |
+//   |                m_str_version 上的版本，./res/help/help.html 上的    |
+//   |                更新日志，修改时间。                                 |
 //   |___________________________________________________________________|
 //
 //
@@ -817,7 +818,7 @@ void ImportProject(RsMap* out, RsMap in, int x, int y)
 // 开始界面
 RsMap StartMenu()
 {
-	printf("MCRedstoneVirtualBox 作者：huidong <mailkey@yeah.net>\n");
+	printf("MCRedstoneSimulate 作者：huidong <mailkey@yeah.net>\n");
 	printf("%s\n", m_str_version);
 	printf("打开项目（按 O） 或 新建项目（按 N）？");
 
@@ -855,8 +856,35 @@ RsMap StartMenu()
 	FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
 }
 
+// 图片拉伸
+// width, height 拉伸后的图片大小
+// img 原图像
+void ImageToSize(int width, int height, IMAGE* img)
+{
+	IMAGE* pOldImage = GetWorkingImage();
+	SetWorkingImage(img);
+
+	IMAGE temp_image(width, height);
+
+	StretchBlt(
+		GetImageHDC(&temp_image), 0, 0, width, height,
+		GetImageHDC(img), 0, 0,
+		getwidth(), getheight(),
+		SRCCOPY
+	);
+
+	Resize(img, width, height);
+	putimage(0, 0, &temp_image);
+
+	SetWorkingImage(pOldImage);
+}
+
 // 得到地图画面
-IMAGE* GetRsMapImage(RsMap* map, bool bShowXY)
+// offset_x,y 指定地图画面偏移
+// zoom 指定缩放大小
+// bShowXY 指定是否显示坐标
+// bShowRuler 指定显示坐标时的方式，为true表示显示标尺，为false表示直接在方块上显示坐标
+IMAGE* GetRsMapImage(RsMap* map, int offset_x, int offset_y, double zoom, bool bShowXY, bool bShowRuler)
 {
 	const double PI = 3.141592653589793846;
 	const double DEGREE = PI / 180;
@@ -979,7 +1007,7 @@ IMAGE* GetRsMapImage(RsMap* map, bool bShowXY)
 			}
 
 			// 输出坐标
-			if (bShowXY)
+			if (bShowXY && !bShowRuler)
 			{
 				TCHAR strX[12] = { 0 };
 				TCHAR strY[12] = { 0 };
@@ -991,9 +1019,97 @@ IMAGE* GetRsMapImage(RsMap* map, bool bShowXY)
 		}
 	}
 
+	// -----绘制标尺，网格起始点
+
+	// 标尺宽高
+	const int nRulerWidth = 20;
+	const int nRulerHeight = 20;
+
+	// xy轴标尺
+	IMAGE* imgXRuler = new IMAGE(getwidth(), nRulerHeight);
+	IMAGE* imgYRuler = new IMAGE(nRulerWidth, getheight());
+
+	// 绘制网格，标尺
+	if (bShowXY && bShowRuler)
+	{
+		// 网格线形
+		setlinecolor(WHITE);
+		setlinestyle(PS_DASH, 1);
+
+		// 网格
+		for (int x = 0; x < map->w; x++)
+		{
+			line(x * nObjSize, 0, x * nObjSize, getheight());
+		}
+		for (int y = 0; y < map->h; y++)
+		{
+			line(0, y * nObjSize, getwidth(), y * nObjSize);
+		}
+
+		// x轴标尺
+		SetWorkingImage(imgXRuler);
+		setlinecolor(WHITE);
+		settextcolor(WHITE);
+		settextstyle(12, 0, L"黑体");
+		setbkmode(TRANSPARENT);
+		setbkcolor(BLUE);
+		cleardevice();
+		rectangle(0, 0, getwidth(), getheight());
+
+		for (int x = 0; x < map->w; x++)
+		{
+			line(x * nObjSize, 0, x * nObjSize, getheight());
+			TCHAR str[6] = { 0 };
+			wsprintf(str, L"%d", x);
+			outtextxy(x* nObjSize + 5, 5, str);
+		}
+
+		// y轴标尺
+		SetWorkingImage(imgYRuler);
+		setlinecolor(WHITE);
+		settextcolor(WHITE);
+		settextstyle(10, 0, L"黑体");
+		setbkmode(TRANSPARENT);
+		setbkcolor(BLUE);
+		cleardevice();
+		rectangle(0, 0, getwidth(), getheight());
+
+		for (int y = 0; y < map->h; y++)
+		{
+			line(0, y * nObjSize, getwidth(), y * nObjSize);
+			TCHAR str[6] = { 0 };
+			wsprintf(str, L"%d", y);
+			outtextxy(5, y * nObjSize + 5, str);
+		}
+	}
+
 	SetWorkingImage(pOld);
 
-	return imgMap;
+	// 存储移动、缩放过后的图像
+	IMAGE* imgMap_offset = new IMAGE(getwidth(), getheight());
+	SetWorkingImage(imgMap_offset);
+
+	// 由于标尺的出现，需要将图像偏移加上标尺的大小
+	offset_x += imgYRuler->getwidth();
+	offset_y += imgXRuler->getheight();
+	putimage(offset_x, offset_y, imgMap);
+
+	// 将绘制好的网格putimage到画布
+	if (bShowXY && bShowRuler)
+	{
+		putimage(offset_x, 0, imgXRuler);
+		putimage(0, offset_y, imgYRuler);
+	}
+
+	// -----绘制标尺，网格结束点
+
+	// 缩放
+	ImageToSize((int)(imgMap_offset->getwidth() * zoom), (int)(imgMap_offset->getheight() * zoom), imgMap_offset);
+	delete imgMap;
+
+	SetWorkingImage(pOld);
+
+	return imgMap_offset;
 }
 
 // 从命令中分离参数
@@ -1036,112 +1152,8 @@ void GetArguments(const char* cmd, char*** chCmdsArray_out, int* nArgsNum_out)
 // 帮助菜单
 void HelpMenu()
 {
-	int page = 0;
-	int pages_num = 5;
-	while (true)
-	{
-		system("cls");
-
-		switch (page)
-		{
-		case 0:
-			printf(
-				"********************指令表********************\n"
-				"* xy\t\t\t开启/关闭显示坐标\n"
-				"* cls\t\t\t清屏\n"
-				"* 坐标x 坐标y\t\t在某位置放置红石粉，如果那个位置已有物品，则清除那个物品\n"
-				"* 坐标x 坐标y 物品 (朝向)\t在某位置放置某物品，并对已有物品进行覆盖。部分方块可设置朝向，留空则默认向上。\n"
-				"* 坐标x 坐标y 朝向\t设置某位置的物品的朝向（针对红石中继器）\n"
-				"* . 坐标x 坐标y\t\t点击某位置的开关（如拉杆，按钮）\n"
-				"* resize 宽 高\t\t重设地图大小\n"
-				"* save\t\t\t保存地图为项目文件\n"
-				"* reset_map_offset\t\t将地图画面的xy偏移都回到0\n"
-				"* up 偏移量\t\t将地图往上偏移n个单位，一单位是10像素\n"
-				"* down 偏移量\t\t将地图往下偏移n个单位，一单位是10像素\n"
-				"* left 偏移量\t\t将地图往左偏移n个单位，一单位是10像素\n"
-				"* right 偏移量\t\t将地图往右偏移n个单位，一单位是10像素\n"
-				"* zoom 缩放大小\t\t将地图缩放至多少百分比\n"
-				"* zoom+ 缩放大小\t\t在地图原先的缩放基础上，再放大多少个百分比\n"
-				"* zoom- 缩放大小\t\t在地图原先的缩放基础上，再减小多少个百分比\n"
-				"* get_map_offset\t\t得到地图画面的xy偏移量\n"
-				"* get_map_zoom\t\t得到地图画面的缩放大小\n"
-				"* import 坐标x 坐标y\t\t导入一个项目到当前项目并指定子项目的左上角位置\n"
-				"* line 坐标x1 坐标y1 坐标x2 坐标y2 (物品)\t画红石直线（不能弯曲），如果在末尾加上物品名表示以某方块填充直线。\n"
-				"* clear 坐标x1 坐标y1 坐标x2 坐标y2\t以空气方块覆盖(x1,y1)到(x2,y2)的所有方块。\n"
-				"* \n"
-			);
-			break;
-		case 1:
-			printf(
-				"********************物品名称表********************\n"
-				"* null\t\t\t空物品\n"
-				"* powder\t\t\t红石粉\n"
-				"* rod\t\t\t拉杆\n"
-				"* button\t\t\t按钮\n"
-				"* torche\t\t\t红石火把\n"
-				"* light\t\t\t红石灯\n"
-				"* relay\t\t\t红石中继器（仅有防止信号倒流的功能）\n"
-				"* \n"
-			);
-			break;
-		case 2:
-			printf(
-				"********************朝向表********************\n"
-				"* up\t\t\t向上\n"
-				"* down\t\t\t向下\n"
-				"* left\t\t\t向左\n"
-				"* right\t\t\t向右\n"
-				"* \n"
-			);
-			break;
-		case 3:
-			printf(
-				"********************关于********************\n"
-				"* 原作者：huidong <mailkey@yeah.net> 于 2020.10.4 研发内测版 Ver0.1，2020.10.5 研发正式版 Ver1.0\n"
-				"* 欢迎访问我的个人网站< http://www.huidong.xyz/ >\n"
-				"* 现版本：%s\n"
-				"* 鸣谢：\n"
-				"* ckj <emil09_chen@126.com> 为项目设计、算法优化提供了宝贵的建议。\n"
-				"* 王沛 对项目予以的鼓励和支持\n"
-				"* \n"
-				, m_str_version);
-			break;
-		case 4:
-			printf(
-				"********************更新日志********************\n"
-				"* 2020.10.4	内测版 Ver 0.1	初步实现程序\n"
-				"* 2020.10.4	内测版 Ver 0.2\n"
-				"*				更新交叉排线板，新增项目导入功能\n"
-				"* 2020.10.5	内测版 Ver 0.3\n"
-				"*				扩大图形界面窗口大小，命令行窗口大小，顶置命令行，使操作更方便。\n"
-				"*				新增绘制红石直线，清除区块的命令，优化算法。\n"
-				"* 2020.10.5	正式版 Ver 1.0\n"
-				"*				程序测试无误，基本功能已全部实现。\n"
-				"* \n"
-			);
-			break;
-		}
-
-		printf("\n当前页数：%d / %d，按a,d键换页，按空格键退出帮助菜单。\n", page + 1, pages_num);
-
-		char input = (char)_getch();
-
-		switch (input)
-		{
-		case 'a':
-			if (page - 1 >= 0)
-				page--;
-			break;
-		case 'd':
-			if (page + 1 < pages_num)
-				page++;
-			break;
-		case ' ':
-			system("cls");
-			return;
-			break;
-		}
-	}
+	system("start ./res/help/help.html");
+	printf("已打开帮助文档，请稍后页面打开。\n");
 }
 
 // 从字符串转换成ID号
@@ -1234,42 +1246,17 @@ bool PointIsInMap(RsMap* map, int x, int y)
 	return x >= 0 && x < map->w&& y >= 0 && y < map->h;
 }
 
-// 图片拉伸
-// width, height 拉伸后的图片大小
-// img 原图像
-void ImageToSize(int width, int height, IMAGE* img)
-{
-	IMAGE* pOldImage = GetWorkingImage();
-	SetWorkingImage(img);
-
-	IMAGE temp_image(width, height);
-
-	StretchBlt(
-		GetImageHDC(&temp_image), 0, 0, width, height,
-		GetImageHDC(img), 0, 0,
-		getwidth(), getheight(),
-		SRCCOPY
-	);
-
-	Resize(img, width, height);
-	putimage(0, 0, &temp_image);
-
-	SetWorkingImage(pOldImage);
-}
-
 // 处理图像
-void ProcessingImage(RsMap* map, bool* bShowXY, int offset_x, int offset_y, double zoom)
+void ProcessingImage(RsMap* map, int offset_x, int offset_y, double zoom, bool bShowXY, bool bShowRuler)
 {
-	IMAGE* img = GetRsMapImage(map, *bShowXY);
-	ImageToSize((int)(img->getwidth() * zoom), (int)(img->getheight() * zoom), img);
-	SetWorkingImage();
+	IMAGE* img = GetRsMapImage(map, offset_x, offset_y, zoom, bShowXY, bShowRuler);
 	cleardevice();
-	putimage(offset_x, offset_y, img);
+	putimage(0, 0, img);
 	delete img;
 }
 
 // 点击一个按钮（阻塞）
-void ClickButton(RsMap* map, int x, int y, bool* bShowXY, int offset_x, int offset_y, double zoom)
+void ClickButton(RsMap* map, int x, int y, int offset_x, int offset_y, double zoom, bool bShowXY, bool bShowRuler)
 {
 	int delay = 2000;
 
@@ -1278,13 +1265,13 @@ void ClickButton(RsMap* map, int x, int y, bool* bShowXY, int offset_x, int offs
 		map->map[y][x].bPower = true;
 		RunRsMap(map);
 
-		ProcessingImage(map, bShowXY, offset_x, offset_y, zoom);	// 手动重绘
+		ProcessingImage(map, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// 手动重绘
 
 		Sleep(delay);
 		map->map[y][x].bPower = false;
 		RunRsMap(map);
 
-		ProcessingImage(map, bShowXY, offset_x, offset_y, zoom);
+		ProcessingImage(map, offset_x, offset_y, zoom, bShowXY, bShowRuler);
 	}
 }
 
@@ -1298,7 +1285,7 @@ void GetSortingPoint(RsMap* map, int* x1, int* y1, int* x2, int* y2)
 		*x1 = *x2;
 		*x2 = temp;
 	}
-	if (*y1 > *y2)
+	if (*y1 > * y2)
 	{
 		int temp = *y1;
 		*y1 = *y2;
@@ -1361,7 +1348,7 @@ void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2)
 }
 
 // 处理用户命令输入（阻塞）
-void ProcessingCommand(RsMap* map, bool* p_bShowXY, int* offset_x, int* offset_y, double* zoom)
+void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool* p_bShowXY, bool* p_bShowRuler)
 {
 	// 地图移动的单位大小（像素）
 	int offset_unit_size = 10;
@@ -1384,6 +1371,12 @@ void ProcessingCommand(RsMap* map, bool* p_bShowXY, int* offset_x, int* offset_y
 	if (nArgsNum == 1 && strcmp(chCmdsArray[0], "xy") == 0)
 	{
 		*p_bShowXY = !(*p_bShowXY);
+	}
+
+	// 切换坐标显示模式
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "xy_mode") == 0)
+	{
+		*p_bShowRuler = !(*p_bShowRuler);
 	}
 
 	// 帮助
@@ -1509,7 +1502,7 @@ void ProcessingCommand(RsMap* map, bool* p_bShowXY, int* offset_x, int* offset_y
 			break;
 
 		case RS_BUTTON:
-			ClickButton(map, x, y, p_bShowXY, *offset_x, *offset_y, *zoom);
+			ClickButton(map, x, y, *offset_x, *offset_y, *zoom, *p_bShowXY, *p_bShowRuler);
 			break;
 
 		default:
@@ -1711,13 +1704,32 @@ void ProcessingCommand(RsMap* map, bool* p_bShowXY, int* offset_x, int* offset_y
 	printf("执行完毕。\n");
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+	SetConsoleTitle(L"MCRedstoneSimulate 终端");
+
 	// 加载图像
 	loadimages();
 
-	// 得到红石地图
-	RsMap map = StartMenu();
+	RsMap map;
+
+	// 如果有文件/参数传入
+	if (argc > 1)
+	{
+		printf("请稍后，打开地图中……");
+
+		TCHAR* strFileName = new TCHAR[strlen(argv[1]) + 1];
+		memset(strFileName, 0, strlen(argv[1]) + 1);
+
+		MultiByteToWideChar(CP_ACP, 0, argv[1], -1, strFileName, 1024);
+
+		map = OpenProject(strFileName);
+	}
+	else
+	{
+		// 正常进入开始菜单
+		map = StartMenu();
+	}
 
 	system("cls");
 	system("mode con cols=120 lines=40");
@@ -1725,9 +1737,13 @@ int main()
 
 	initgraph(1024, 768, EW_SHOWCONSOLE);
 	SetWindowPos(GetConsoleWindow(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	SetWindowText(GetHWnd(),L"MCRedstoneSimulate 模拟器");
 
 	// 是否显示方块坐标
 	bool bShowXY = true;
+
+	// 坐标显示方式
+	bool bShowRuler = true;
 
 	// 地图偏移显示
 	int offset_x = 0;
@@ -1740,8 +1756,8 @@ int main()
 	while (true)
 	{
 		RunRsMap(&map);
-		ProcessingImage(&map, &bShowXY, offset_x, offset_y, zoom);
-		ProcessingCommand(&map, &bShowXY, &offset_x, &offset_y, &zoom);
+		ProcessingImage(&map, offset_x, offset_y, zoom, bShowXY, bShowRuler);
+		ProcessingCommand(&map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler);
 	}
 
 	closegraph();

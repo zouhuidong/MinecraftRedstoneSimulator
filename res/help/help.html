@@ -1,0 +1,269 @@
+<!--
+
+	该文档为 MCRedstoneSimulate 帮助文档
+	制作：huidong
+	网站：www.huidong.xyz
+	博客：http://www.huidong.xyz/?mode=2&id=164
+	github：https://github.com/zouhuidong/MinecraftRedstoneSimulate/
+
+-->
+
+
+<html>
+
+	<head>
+		<title> MCRedstoneSimulate 帮助文档 </title>
+	</head>
+
+	<body>
+	<h1>MCRedstoneSimulate 帮助文档</h1>
+	
+	<!--
+	
+	注意：
+	版本号，修改日期，更新日志
+	
+	-->
+	
+	<p><strong>Ver 1.1 - huidong 2020.10.7</strong></p>
+	<p>&nbsp; </p>
+	<h2>指令菜单</h2>
+	<table border="1">
+		<tr>
+			<th width="300" scope="col">命令</th>
+			<th width="300" scope="col">参数</th>
+			<th width="700" scope="col">用途</th>
+		</tr>
+		<tr>
+			<th scope="row">xy</th>
+			<td>无</td>
+			<td>开启 / 关闭显示坐标</td>
+		</tr>
+		<tr>
+			<th scope="row">xy_mode</th>
+			<td>无</td>
+			<td>切换显示坐标的方式，可以在显示标尺和直接在方块上显示坐标这两者中切换。</td>
+		</tr>
+		<tr>
+			<th scope="row">cls</th>
+			<td>无</td>
+			<td>清屏</td>
+		</tr>
+		<tr>
+			<th scope="row">坐标x 坐标y</th>
+			<td>无</td>
+			<td>在某位置放置红石粉，如果那个位置已有物品，则清除那个物品</td>
+		</tr>
+		<tr>
+			<th scope="row">坐标x 坐标y 物品 (朝向)</th>
+			<td>无</td>
+			<td>在某位置放置某物品，并对已有物品进行覆盖。部分方块可设置朝向，留空则默认向上。</td>
+		</tr>
+		<tr>
+			<th scope="row">坐标x 坐标y 朝向</th>
+			<td>无</td>
+			<td>设置某位置的物品的朝向（针对红石中继器）</td>
+		</tr>
+		<tr>
+			<th scope="row">.</th>
+			<td> 坐标x 坐标y</td>
+			<td>点击某位置的开关（如拉杆，按钮）</td>
+		</tr>
+		<tr>
+			<th scope="row">resize</th>
+			<td>宽 高</td>
+			<td>重设地图大小</td>
+		</tr>
+		<tr>
+			<th scope="row">save</th>
+			<td>无</td>
+			<td>保存地图为项目文件</td>
+		</tr>
+		<tr>
+			<th scope="row">reset_map_offset</th>
+			<td>无</td>
+			<td>将地图画面的xy偏移都回到0</td>
+		</tr>
+		<tr>
+			<th scope="row">up</th>
+			<td>偏移量</td>
+			<td>将地图往上偏移n个单位，一单位是10像素</td>
+		</tr>
+		<tr>
+			<th scope="row">down</th>
+			<td>偏移量</td>
+			<td>将地图往下偏移n个单位，一单位是10像素</td>
+		</tr>
+		<tr>
+			<th scope="row">left</th>
+			<td>偏移量</td>
+			<td>将地图往左偏移n个单位，一单位是10像素</td>
+		</tr>
+		<tr>
+			<th scope="row">right</th>
+			<td>偏移量</td>
+			<td>将地图往右偏移n个单位，一单位是10像素</td>
+		</tr>
+		<tr>
+			<th scope="row">zoom</th>
+			<td>缩放大小</td>
+			<td>将地图缩放至多少百分比</td>
+		</tr>
+		<tr>
+			<th scope="row">zoom+</th>
+			<td>缩放大小</td>
+			<td>在地图原先的缩放基础上，再放大多少个百分比</td>
+		</tr>
+		<tr>
+			<th scope="row">zoom-</th>
+			<td>缩放大小</td>
+			<td>在地图原先的缩放基础上，再减小多少个百分比</td>
+		</tr>
+		<tr>
+			<th scope="row">get_map_offset</th>
+			<td>无</td>
+			<td>得到地图画面的xy偏移量</td>
+		</tr>
+		<tr>
+			<th scope="row">get_map_zoom</th>
+			<td>无</td>
+			<td>得到地图画面的缩放大小</td>
+		</tr>
+		<tr>
+			<th scope="row">import</th>
+			<td>坐标x 坐标y</td>
+			<td>导入一个项目到当前项目，并指定子项目位于当前项目的左上角位置</td>
+		</tr>
+		<tr>
+			<th scope="row">line</th>
+			<td>坐标x1 坐标y1 坐标x2 坐标y2 (物品)</td>
+			<td>画红石直线（不能弯曲），如果在末尾加上物品名表示以某方块填充直线。</td>
+		</tr>
+		<tr>
+			<th scope="row">clear</th>
+			<td>坐标x1 坐标y1 坐标x2 坐标y2</td>
+			<td>清除 (x1, y1) 到 (x2, y2) 的所有方块，即以空气方块覆盖。</td>
+		</tr>
+	</table>
+	<p>&nbsp;</p>
+	<h2>物品名称表</h2>
+	<table width="700" border="1">
+		<tr>
+			<th scope="col">英文代号</th>
+			<th scope="col">中文名称</th>
+		</tr>
+		<tr>
+			<th scope="row">null</th>
+			<td>空气方块</td>
+		</tr>
+		<tr>
+			<th scope="row">powder</th>
+			<td>红石粉</td>
+		</tr>
+		<tr>
+			<th scope="row">rod</th>
+			<td>拉杆</td>
+		</tr>
+		<tr>
+			<th scope="row">button</th>
+			<td>按钮</td>
+		</tr>
+		<tr>
+			<th scope="row">torche</th>
+			<td>红石火把</td>
+		</tr>
+		<tr>
+			<th scope="row">light</th>
+			<td>红石灯</td>
+		</tr>
+		<tr>
+			<th scope="row">relay</th>
+			<td>红石中继器（仅有防止信号倒流的功能）</td>
+		</tr>
+		<tr>
+			<th scope="row">cross</th>
+			<td>交叉排线板（使两段交叉的线路交叉不相连）</td>
+		</tr>
+	</table>
+	<p>&nbsp;</p>
+	<h2>朝向表</h2>
+	<table width="300" border="1">
+		<tr>
+			<th scope="col">英文代号</th>
+			<th scope="col">中文名称</th>
+		</tr>
+		<tr>
+			<th scope="row">up</th>
+			<td>向上</td>
+		</tr>
+		<tr>
+			<th scope="row">down</th>
+			<td>向下</td>
+		</tr>
+		<tr>
+			<th scope="row">left</th>
+			<td>向左</td>
+		</tr>
+		<tr>
+			<th scope="row">right</th>
+			<td>向右</td>
+		</tr>
+	</table>
+	<p>&nbsp;</p>
+	<h2>关于</h2>
+	<p><br>
+	作者：huidong &lt;mailkey@yeah.net&gt;	</p>
+	<p>于 2020.10.4 研发内测版 Ver0.1，2020.10.5 研发正式版 Ver1.0<br>
+	欢迎访问我的个人网站 <a href="http://www.huidong.xyz/">http://www.huidong.xyz/</a></p>
+	<p><br>
+	<strong>鸣谢：</strong><br>
+		ckj &lt;emil09_chen@126.com&gt; 为项目设计、算法优化提供了宝贵的建议。<br>
+		王沛 对项目予以的鼓励和支持。
+	</p>
+	<p>&nbsp;</p>
+	<h2>更新日志</h2>
+	<table width="900" border="1">
+		<tr>
+			<th scope="col">版本</th>
+			<th scope="col">时间</th>
+			<th scope="col">更新内容</th>
+		</tr>
+		<tr>
+			<td>内测版 Ver 0.1</td>
+			<td>2020.10.4</td>
+			<td>初步实现程序</td>
+		</tr>
+		<tr>
+			<td>内测版 Ver 0.2</td>
+			<td>2020.10.4</td>
+			<td>更新交叉排线板，新增项目导入功能</td>
+		</tr>
+		<tr>
+			<td>内测版 Ver 0.3</td>
+			<td>2020.10.5</td>
+			<td><p>扩大图形界面窗口大小，命令行窗口大小，顶置命令行，使操作更方便。</p>
+			<p>新增绘制红石直线，清除区块的命令，优化算法。</p></td>
+		</tr>
+		<tr>
+			<td>Ver 1.0</td>
+			<td>2020.10.5</td>
+			<td> 程序各项功能测试通过。</td>
+		</tr>
+		<tr>
+			<td>Ver 1.1</td>
+			<td>2020.10.7</td>
+			<td>
+				<p>项目名由MinecraftRedstoneVirtualBox改为MinecraftRedstoneSimulate。</p>
+				<p>帮助文档改为单独的网页。</p>
+				<p>交叉排线板的贴图更新。</p>
+				<p>更新坐标显示方式为标尺，且添加了网格线；增加xy_mode命令，可以切换坐标显示模式。</p>
+				<p>新增程序icon，设置了命令行和图形界面的窗口标题。</p>
+				<p>可以直接将rsp地图文件拖动到程序中来打开地图。</p>
+			</td>
+		</tr>
+	</table>
+	<p>&nbsp;</p>
+	<p>&nbsp;</p>
+	</body>
+
+</html>
