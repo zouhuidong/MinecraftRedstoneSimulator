@@ -1,10 +1,10 @@
 <!--
 
-	该文档为 MCRedstoneSimulate 帮助文档
+	该文档为 MCRedstoneSimulator 帮助文档
 	制作：huidong
 	网站：www.huidong.xyz
 	博客：http://www.huidong.xyz/?mode=2&id=164
-	github：https://github.com/zouhuidong/MinecraftRedstoneSimulate/
+	github：https://github.com/zouhuidong/MinecraftRedstoneSimulator/
 
 -->
 
@@ -12,11 +12,11 @@
 <html>
 
 	<head>
-		<title> MCRedstoneSimulate 帮助文档 </title>
+		<title> MCRedstoneSimulator 帮助文档 </title>
 	</head>
 
 	<body>
-	<h1>MCRedstoneSimulate 帮助文档</h1>
+	<h1>MCRedstoneSimulator 帮助文档</h1>
 	
 	<!--
 	
@@ -25,7 +25,7 @@
 	
 	-->
 	
-	<p><strong>Ver 1.1 - huidong 2020.10.7</strong></p>
+	<p><strong>Ver 1.2 - huidong 2020.10.11</strong></p>
 	<p>&nbsp; </p>
 	<h2>指令菜单</h2>
 	<table border="1">
@@ -42,7 +42,7 @@
 		<tr>
 			<th scope="row">xy_mode</th>
 			<td>无</td>
-			<td>切换显示坐标的方式，可以在显示标尺和直接在方块上显示坐标这两者中切换。</td>
+			<td>切换显示坐标的方式，可以设置为显示标尺或直接在方块上显示坐标。（直接在方块上显示坐标可以获得更快的渲染速度）</td>
 		</tr>
 		<tr>
 			<th scope="row">cls</th>
@@ -259,6 +259,14 @@
 				<p>更新坐标显示方式为标尺，且添加了网格线；增加xy_mode命令，可以切换坐标显示模式。</p>
 				<p>新增程序icon，设置了命令行和图形界面的窗口标题。</p>
 				<p>可以直接将rsp地图文件拖动到程序中来打开地图。</p>
+			</td>
+		</tr>
+		<tr>
+			<td>Ver 1.2</td>
+			<td>2020.10.11</td>
+			<td>
+				<p>项目名由MinecraftRedstoneSimulate改为MinecraftRedstoneSimulator。</p>
+				<p>优化绘图算法，加快渲染速度。（在Ver 1.1中，用标尺方式渲染一个200*200的地图需要21s，优化后需要3s，如果使用直接在方块上显示坐标的方法可以得到更快的渲染速度(&lt;1s)）</p>
 			</td>
 		</tr>
 	</table>
