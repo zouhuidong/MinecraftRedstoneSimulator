@@ -25,7 +25,7 @@
 	
 	-->
 	
-	<p><strong>Ver 1.2 - huidong 2020.10.11</strong></p>
+	<p><strong>Ver 1.3 - huidong 2020.10.24</strong></p>
 	<p>&nbsp; </p>
 	<h2>指令菜单</h2>
 	<table border="1">
@@ -135,14 +135,50 @@
 			<td>导入一个项目到当前项目，并指定子项目位于当前项目的左上角位置</td>
 		</tr>
 		<tr>
-			<th scope="row">line</th>
+			<th scope="row">line（指令头可省略）</th>
 			<td>坐标x1 坐标y1 坐标x2 坐标y2 (物品)</td>
-			<td>画红石直线（不能弯曲），如果在末尾加上物品名表示以某方块填充直线。</td>
+			<td><p>画红石直线（不能弯曲），如果在末尾加上物品名表示以某方块填充直线。</p>
+			<p>指令头( line )可以省略，即可以直接输入所有参数。</p></td>
 		</tr>
 		<tr>
 			<th scope="row">clear</th>
 			<td>坐标x1 坐标y1 坐标x2 坐标y2</td>
 			<td>清除 (x1, y1) 到 (x2, y2) 的所有方块，即以空气方块覆盖。</td>
+		</tr>
+		<tr>
+			<th scope="row">exit</th>
+			<td>无</td>
+			<td>退出程序。</td>
+		</tr>
+		<tr>
+			<th scope="row">cmd_window_top</th>
+			<td>无</td>
+			<td>使cmd窗口顶置。</td>
+		</tr>
+		<tr>
+			<th scope="row">cmd_window_no_top</th>
+			<td>无</td>
+			<td>使cmd窗口不顶置。</td>
+		</tr>
+		<tr>
+			<th scope="row">map_window_top</th>
+			<td>无</td>
+			<td>使地图显示窗口顶置。</td>
+		</tr>
+		<tr>
+			<th scope="row">map_window_no_top</th>
+			<td>无</td>
+			<td>使地图显示窗口不顶置。</td>
+		</tr>
+		<tr>
+			<th scope="row">resize_cmd_window</th>
+			<td>窗口宽 窗口高</td>
+			<td>设置cmd窗口大小（单位为cmd窗口大小单位）</td>
+		</tr>
+		<tr>
+			<th scope="row">resize_map_window</th>
+			<td>窗口宽 窗口高</td>
+			<td>设置地图显示窗口大小（单位：像素）</td>
 		</tr>
 	</table>
 	<p>&nbsp;</p>
@@ -267,6 +303,27 @@
 			<td>
 				<p>项目名由MinecraftRedstoneSimulate改为MinecraftRedstoneSimulator。</p>
 				<p>优化绘图算法，加快渲染速度。（在Ver 1.1中，用标尺方式渲染一个200*200的地图需要21s，优化后需要3s，如果使用直接在方块上显示坐标的方法可以得到更快的渲染速度(&lt;1s)）</p>
+			</td>
+		</tr>
+		<tr>
+			<td>Ver 1.3</td>
+			<td>2020.10.24</td>
+			<td>
+				<p>更新按钮贴图。</p>
+				<p>修复使用zoom指令缩放后地图显示范围未改变的bug。</p>
+				<p>修复在某种条件下CROSS方块信号断路的bug。</p>
+				<p>更新line指令，可以省略指令头。</p>
+				<p>新增下列指令：<br/>
+				exit<br/>
+				cmd_window_top<br/>
+				cmd_window_no_top<br/>
+				map_window_top<br/>
+				map_window_no_top<br/>
+				resize_cmd_window<br/>
+				resize_map_window
+				</p>
+				<p>修复打开项目后help指令无效的问题。</p>
+				<p>修复打开较大项目失败的问题（即内存泄漏问题）。</p>
 			</td>
 		</tr>
 	</table>

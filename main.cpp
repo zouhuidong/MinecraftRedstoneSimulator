@@ -3,7 +3,9 @@
 //	MCRedstoneSimulator
 //	main.cpp
 //	我的世界红石模拟器
-//	by huidong 2020.10.11 <mailkey@yeah.net>
+//	by huidong <mailkey@yeah.net>
+//
+//	最后修改：2020.10.24
 //
 
 
@@ -11,7 +13,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <io.h>
-#include <thread>
+#include <direct.h>
 
 // 在debug模式下启动模块计时
 #ifdef _DEBUG
@@ -23,7 +25,7 @@ LARGE_INTEGER fq, t_begin, t_end;
 #endif
 
 // 版本信息
-char m_str_version[] = { "Version 1.2" };
+char m_str_version[] = { "Version 1.3" };
 
 //
 //    ___________________________________________________________________
@@ -351,11 +353,37 @@ bool isMePower(RsMap* map, int x, int y)
 // 执行关于普通方块的处理（含红石火把）
 void RunObj(RsMap* map, bool**& pPass, int x, int y)
 {
-	// 已经访问过，不再重复访问，防止造成递归死循环
-	if (pPass[y][x])
+	RsObj* me = &map->map[y][x];
+
+	// 已经访问过，不再重复访问，防止造成递归死循环（CROSS除外，即使被访问过也可以继续访问）
+	if (pPass[y][x] && me->nObj != RS_CROSS)
 		return;
 
-	RsObj* me = &map->map[y][x];
+	// 为什么CROSS即使被访问过也可以继续访问？
+	// 访问记录的目的是防止环形电路导致的递归死循环，但是cross方块不能异向导电，所以不能构成环形电路，故不需要停止RunObj函数。
+	// 
+	// 这里有更详细的解释：
+	/*
+	举个例子，如果cross方块被访问过也一样要return的话：
+
+				 L1
+				 |
+				 |
+		 ------CROSS-----L2
+		 |       |
+		 |       |
+		rod1	rod2
+
+	在上面的电路情况中，如果rod1和rod2都开启，那么RunRsMap函数中，会遍历地图，先执行rod1的处理。
+	rod1的处理结果是，rod1到L2的线路被充能，L2亮起。
+
+	然后等到执行到rod2的处理时，会和rod1一样，调用runobj递归处理这条线路，但是运行到cross处时，
+	再次向不同方向执行runobj函数递归前，cross的访问记录已经被标记为true了，所以接下来的递归都以失败告终，
+	所以最终会导致这样一个结果：
+
+	rod2到L1的线路中，rod2到cross段是充能的，但是cross到L1段是不充能的，就会导致L1不亮，L2在rod1的影响下还是亮的。
+
+	*/
 
 	// 如果有能量传给我
 	if (isMePower(map, x, y))
@@ -392,6 +420,7 @@ void RunObj(RsMap* map, bool**& pPass, int x, int y)
 		return;
 	}
 
+	// 登记方块的访问记录
 	pPass[y][x] = true;
 
 	// 判断四周是否可以继续传输信号，并往下传输。
@@ -575,10 +604,16 @@ const WCHAR* SelectFile(bool isSave = false)
 	ofn.nMaxFileTitle = sizeof(szFileTitle);
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_EXPLORER;
 
+	char oldpath[1024] = { 0 };
+	_getcwd(oldpath, 1024);
+	wchar_t woldpath[128] = { 0 };
+	MultiByteToWideChar(CP_ACP, 0, oldpath, -1, woldpath, 1024);
+
 	if (isSave)
 	{
 		if (GetSaveFileName(&ofn))
 		{
+			SetCurrentDirectory(woldpath);
 			return szFile;
 		}
 	}
@@ -586,6 +621,7 @@ const WCHAR* SelectFile(bool isSave = false)
 	{
 		if (GetOpenFileName(&ofn))
 		{
+			SetCurrentDirectory(woldpath);
 			return szFile;
 		}
 	}
@@ -630,9 +666,12 @@ bool ReadNum(const char* str, int& index, int& num)
 	if (num_index > 0)
 	{
 		num = atoi(chNum);
+
+		delete[] chNum;
 		return true;
 	}
 
+	delete[] chNum;
 	return false;
 }
 
@@ -920,8 +959,8 @@ IMAGE* GetRsMapImage(RsMap* map, int offset_x, int offset_y, double zoom, bool b
 	imgMap->Resize(map->w * nObjSize, map->h * nObjSize);
 
 	IMAGE* pOld = GetWorkingImage();
-	int nScreen_w = getwidth();
-	int nScreen_h = getheight();
+	int nScreen_w = (int)(getwidth() / zoom);
+	int nScreen_h = (int)(getheight() / zoom);
 
 	SetWorkingImage(imgMap);
 	settextcolor(WHITE);
@@ -1478,7 +1517,7 @@ void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, b
 	// 两种情况：
 	// 在某位置放置某物品，如果那个位置已有物品，则覆盖那个物品。红石中继器有朝向设定，如果留空则表示向上
 	// 设置某位置的物品的朝向（针对红石中继器）
-	else if ((nArgsNum == 3 || nArgsNum == 4) && isAllNum(chCmdsArray[0]) && isAllNum(chCmdsArray[1]))
+	else if ((nArgsNum == 3 || nArgsNum == 4) && isAllNum(chCmdsArray[0]) && isAllNum(chCmdsArray[1]) && !isAllNum(chCmdsArray[2]))
 	{
 		int type;
 		int id;
@@ -1703,13 +1742,23 @@ void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, b
 	}
 
 	// line 坐标x1 坐标y1 坐标x2 坐标y2 (物品) : 画红石直线（不能弯曲），如果在末尾加上物品名表示以某方块填充直线。
-	else if ((nArgsNum == 5 || nArgsNum == 6) && strcmp(chCmdsArray[0], "line") == 0 &&
-		isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]) && isAllNum(chCmdsArray[3]) && isAllNum(chCmdsArray[4]))
+	else if (
+		(nArgsNum == 5 || nArgsNum == 6) && strcmp(chCmdsArray[0], "line") == 0 &&
+		isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]) && isAllNum(chCmdsArray[3]) && isAllNum(chCmdsArray[4]) ||
+
+		((nArgsNum == 4 || nArgsNum == 5) && isAllNum(chCmdsArray[0]) && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]) && isAllNum(chCmdsArray[3]))
+		)
 	{
-		int x1 = atoi(chCmdsArray[1]);
-		int y1 = atoi(chCmdsArray[2]);
-		int x2 = atoi(chCmdsArray[3]);
-		int y2 = atoi(chCmdsArray[4]);
+		int start = 1;
+		if (nArgsNum == 4 || (nArgsNum == 5 && !isAllNum(chCmdsArray[4])))
+		{
+			start = 0;
+		}
+
+		int x1 = atoi(chCmdsArray[start]);
+		int y1 = atoi(chCmdsArray[start + 1]);
+		int x2 = atoi(chCmdsArray[start + 2]);
+		int y2 = atoi(chCmdsArray[start + 3]);
 		int id = RS_POWDER;
 
 		if (!PointIsInMap(map, x1, y1) || !PointIsInMap(map, x2, y2))
@@ -1718,12 +1767,12 @@ void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, b
 			return;
 		}
 
-		if (nArgsNum == 6)
+		if (nArgsNum == start + 5)
 		{
 			int type;
-			if (!GetIdFromString(chCmdsArray[5], &type, &id) || type != 0)
+			if (!GetIdFromString(chCmdsArray[start + 4], &type, &id) || type != 0)
 			{
-				printf("第6个参数应该是物品id。\n");
+				printf("最后一个参数应该是物品id。\n");
 				return;
 			}
 		}
@@ -1752,6 +1801,57 @@ void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, b
 		}
 
 		ClearRsMap(map, x1, y1, x2, y2);
+	}
+
+	// exit 退出程序
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "exit") == 0)
+	{
+		if (MessageBox(GetConsoleWindow(), L"确定要退出程序吗？", L"退出程序", MB_OKCANCEL) == IDOK)
+		{
+			exit(0);
+		}
+	}
+
+	// cmd_window_top 使cmd顶置
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "cmd_window_top") == 0)
+	{
+		SetWindowPos(GetConsoleWindow(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	}
+
+	// cmd_window_no_top 使cmd不顶置
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "cmd_window_no_top") == 0)
+	{
+		SetWindowPos(GetConsoleWindow(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	}
+
+	// map_window_top 使绘图窗口顶置
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "map_window_top") == 0)
+	{
+		SetWindowPos(GetHWnd(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	}
+
+	// map_window_no_top 使绘图窗口不顶置
+	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "map_window_no_top") == 0)
+	{
+		SetWindowPos(GetHWnd(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	}
+
+	// resize_cmd_window 设置cmd窗口大小
+	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], "resize_cmd_window") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
+	{
+		int w = atoi(chCmdsArray[1]);
+		int h = atoi(chCmdsArray[2]);
+		char cmd[64] = {0};
+		sprintf_s(cmd, 64, "mode con cols=%d lines=%d", w, h);
+		system(cmd);
+	}
+
+	// resize_map_window 设置绘图窗口大小
+	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], "resize_map_window") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
+	{
+		int w = atoi(chCmdsArray[1]);
+		int h = atoi(chCmdsArray[2]);
+		Resize(NULL, w, h);
 	}
 
 	else
