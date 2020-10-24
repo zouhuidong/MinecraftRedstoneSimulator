@@ -8,7 +8,7 @@
 效果：
 这是一个三位密码锁，由下面三个异或门和上面一个或门，与门组成。
 
-![输入图片说明](http://www.huidong.xyz/ueditor/php/upload/image/20201024/1603524828102764.png)
+![输入图片说明](https://github.com/zouhuidong/MinecraftRedstoneSimulator/blob/main/screenshots/light.png)
 
 尽管这个模拟器是平面的，但他仍然可以实现许多在Minecraft中可以实现的东西。
 
