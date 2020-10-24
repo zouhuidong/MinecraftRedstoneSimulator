@@ -6,7 +6,6 @@
 
 
 效果：
-这是一个三位密码锁，由下面三个异或门和上面一个或门，与门组成。
 
 ![](https://github.com/zouhuidong/MinecraftRedstoneSimulator/blob/main/screenshots/light.png)
 
