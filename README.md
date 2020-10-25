@@ -7,7 +7,7 @@
 
 效果：
 
-![](https://github.com/zouhuidong/MinecraftRedstoneSimulator/blob/main/screenshots/3x6%E7%82%B9%E9%98%B5%E7%81%AF%E6%95%88%E6%9E%9C.png)
+![](https://github.com/zouhuidong/MinecraftRedstoneSimulator/blob/main/screenshots/%E6%96%B0%E7%9A%84CROSS%E6%96%B9%E5%9D%97%E4%B8%8B%E7%9A%843x6%E7%82%B9%E9%98%B5%E7%81%AF.png)
 
 尽管这个模拟器是平面的，但他仍然可以实现许多在Minecraft中可以实现的东西。
 
