@@ -5,7 +5,7 @@
 //	我的世界红石模拟器
 //	by huidong <mailkey@yeah.net>
 //
-//	最后修改：2020.10.24
+//	最后修改：2020.10.25
 //
 
 
@@ -25,7 +25,7 @@ LARGE_INTEGER fq, t_begin, t_end;
 #endif
 
 // 版本信息
-char m_str_version[] = { "Version 1.3" };
+char m_str_version[] = { "Version 1.4" };
 
 //
 //    ___________________________________________________________________
@@ -49,7 +49,6 @@ IMAGE m_img_button[2];	// 按钮
 IMAGE m_img_torche[2];	// 红石火把
 IMAGE m_img_light[2];	// 红石灯
 IMAGE m_img_relay[2];	// 红石中继器
-IMAGE m_img_cross;		// 交叉排线板
 
 //
 // 交叉排线版他不属于MC方块，只是因为平面电路交叉的需要而设计
@@ -152,8 +151,6 @@ void loadimages()
 
 	loadimage(&m_img_relay[0], L"./res/objs/null/relay/relay.bmp");
 	loadimage(&m_img_relay[1], L"./res/objs/power/relay/relay.bmp");
-
-	loadimage(&m_img_cross, L"./res/objs/null/cross/cross.bmp");
 }
 
 // 判断一物体是否为信号源方块
@@ -984,9 +981,20 @@ IMAGE* GetRsMapImage(RsMap* map, int offset_x, int offset_y, double zoom, bool b
 				continue;
 
 			IMAGE powder(nObjSize, nObjSize);	// 实时绘制红石粉的画布
+			IMAGE cross(nObjSize, nObjSize);	// 实时绘制交叉排线板的画布
 			IMAGE relay(nObjSize, nObjSize);	// 实时绘制红石中继器的画布
 			RsObj me = map->map[y][x];
 			RsObj up, down, left, right;
+
+			// 实时生成图像时用到的颜色
+			COLORREF colorPower = RGB(255, 0, 0);	// 有电的颜色
+			COLORREF colorNoPower = RGB(100, 0, 0);	// 无电的颜色
+
+			// 红石线粗
+			int nPowderWidth = 12;
+
+			// cross方块横向电路的线段的点位置
+			POINT pCrossHLine[3] = { { 0,nObjSize / 2 }, { nObjSize / 2,nObjSize / 4 }, { nObjSize,nObjSize / 2 } };
 
 			if (y - 1 >= 0)
 				up = map->map[y - 1][x];
@@ -1008,18 +1016,18 @@ IMAGE* GetRsMapImage(RsMap* map, int offset_x, int offset_y, double zoom, bool b
 
 				if (me.bPower)
 				{
-					setfillcolor(RGB(255, 0, 0));
-					setlinecolor(RGB(255, 0, 0));
+					setfillcolor(colorPower);
+					setlinecolor(colorPower);
 				}
 
 				else
 				{
-					setfillcolor(RGB(100, 0, 0));
-					setlinecolor(RGB(100, 0, 0));
+					setfillcolor(colorNoPower);
+					setlinecolor(colorNoPower);
 				}
 
-				fillcircle(nObjSize / 2, nObjSize / 2, 5);
-				setlinestyle(PS_SOLID, 12);
+				fillcircle(nObjSize / 2, nObjSize / 2, nPowderWidth / 2 - 1);
+				setlinestyle(PS_SOLID, nPowderWidth);
 
 				// 实时绘制红石粉
 				if (y - 1 >= 0 && up.nObj != RS_NULL)
@@ -1080,7 +1088,42 @@ IMAGE* GetRsMapImage(RsMap* map, int offset_x, int offset_y, double zoom, bool b
 				break;
 
 			case RS_CROSS:
-				putimage(x * nObjSize, y * nObjSize, &m_img_cross);
+
+				SetWorkingImage(&cross);
+				setlinestyle(PS_SOLID, nPowderWidth);
+
+				if (up.bPower || down.bPower)
+				{
+					setfillcolor(colorPower);
+					setlinecolor(colorPower);
+				}
+
+				else
+				{
+					setfillcolor(colorNoPower);
+					setlinecolor(colorNoPower);
+				}
+
+				line(nObjSize / 2, 0, nObjSize / 2, nObjSize);	// 竖向电路
+
+				if (left.bPower || right.bPower)
+				{
+					setfillcolor(colorPower);
+					setlinecolor(colorPower);
+				}
+
+				else
+				{
+					setfillcolor(colorNoPower);
+					setlinecolor(colorNoPower);
+				}
+
+				// 横向电路，是弯曲的
+				polyline(pCrossHLine, 3);
+
+				SetWorkingImage(imgMap);
+				putimage(x * nObjSize, y * nObjSize, &cross);
+
 				break;
 			}
 
@@ -1459,11 +1502,21 @@ void ProcessingCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, b
 	gets_s(chCmd, nMaxInputdSize);
 
 	// 参数数量
-	int nArgsNum;
-	char** chCmdsArray;
+	static int nArgsNum = 0;
+	static char** chCmdsArray = NULL;
+
+	// 清理上一次的内存
+	if (chCmdsArray != NULL)
+	{
+		for(int i=0;i<nArgsNum;i++)
+			delete[] chCmdsArray[i];
+		delete[] chCmdsArray;
+	}
 
 	// 解析参数
 	GetArguments(chCmd, &chCmdsArray, &nArgsNum);
+
+	delete[] chCmd;
 
 	// 设置是否开启显示坐标
 	if (nArgsNum == 1 && strcmp(chCmdsArray[0], "xy") == 0)
