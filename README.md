@@ -1,4 +1,9 @@
 # MinecraftRedstoneSimulator
+![Downloads](https://img.shields.io/github/downloads/zouhuidong/MinecraftRedstoneSimulator/total)
+![GitHub Version](https://img.shields.io/github/v/release/zouhuidong/MinecraftRedstoneSimulator)
+[![Blog](https://img.shields.io/badge/blog-huidong.xyz-green.svg)](http://huidong.xyz)
+[![EasyX](https://img.shields.io/badge/graphics-EasyX-orange.svg)](https://easyx.cn)
+
 一个使用easyx绘制图形界面，使用命令行操作地图的我的世界平面红石模拟器
 
 程序由两个窗口组成，一个是用来输入的cmd窗口，另一个是用来显示地图的绘图窗口。
