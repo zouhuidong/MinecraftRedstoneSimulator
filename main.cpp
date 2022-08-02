@@ -62,12 +62,15 @@ enum RedstoneTowards
 // 红石方块定义
 typedef struct RedstoneObject
 {
-	int nType = RS_NULL;	// 方块种类
-	bool bPower;			// 是否充能
-	int nTowards;			// 朝向
+	int nType = RS_NULL;			// 方块种类
+	bool bPower = false;			// 是否充能（对于交叉线，任意方向充能都会标识）
+	int nTowards = RS_TO_UP;		// 朝向
 
-	int nPowerCount;		// 供电数量
-	POINT* pPowerList;		// 供电电源坐标
+	bool bUprightPower = false;		// 竖直方向是否充能（仅用于交叉线）
+	bool bHorizonPower = false;		// 水平方向是否充能（仅用于交叉线）
+
+	int nPowerCount = 0;			// 供电数量
+	POINT* pPowerList = NULL;		// 供电电源坐标
 
 }RsObj;
 
@@ -496,8 +499,8 @@ void ConductPower(RsMap* pMap, int x, int y, POINT pPower)
 }
 
 // 确认电源状态
-// pPower 电源位置
-// flagFirst 是否为第一次调用
+// pPower		电源位置
+// flagFirst	是否为第一次调用
 void CheckPower(RsMap* pMap, POINT pPower, bool flagFirst = false)
 {
 	static POINT* pVisited = NULL;
@@ -585,7 +588,7 @@ void RunRsMap(RsMap* pMap)
 		}
 	}
 
-	// 审查电源状态
+	// 审查电源状态（红石火把开关设置）
 	for (int i = 0; i < pMap->w; i++)
 	{
 		for (int j = 0; j < pMap->h; j++)
@@ -617,6 +620,55 @@ void RunRsMap(RsMap* pMap)
 			}
 		}
 	}
+
+	// 所有导体的充能状态设置完毕后，再次对交叉线单独设置充能状态
+	for (int i = 0; i < pMap->w; i++)
+	{
+		for (int j = 0; j < pMap->h; j++)
+		{
+			if (pMap->map[j][i].nType == RS_CROSS)
+			{
+				// 预设为 false
+				pMap->map[j][i].bUprightPower = false;
+				pMap->map[j][i].bHorizonPower = false;
+
+				// 判断一方块是否为有效电源
+				auto isActivePower = [pMap](int x, int y) {
+					if (pMap->map[y][x].bPower)
+						if (isConductiveObj(&pMap->map[y][x]) && pMap->map[y][x].nType != RS_CROSS)
+							return true;
+					return false;
+				};
+
+				// 由于交叉线在水平和垂直方向互不干扰，所以若某个方向充能，沿此方向搜索一定能遇到充能方块
+
+				// 垂直方向搜索
+				// 若已标记垂直方向充能，则跳出
+				for (int k = -1; !pMap->map[j][i].bUprightPower && k <= 1; k += 2)
+					for (int y = j + k;
+						((y >= 0 && y < pMap->h)					// 搜索越界
+							&& isConductiveObj(&pMap->map[y][i])	// 必须沿导电方块搜索
+							&& pMap->map[y][i].bPower				// 搜索路径必须完全充能
+							&& !pMap->map[j][i].bUprightPower);		// 已标记充能后跳出
+						y += k)
+						if (isActivePower(i, y))
+							pMap->map[j][i].bUprightPower = true;
+
+				// 水平方向搜索
+				// 若已标记水平方向充能，则跳出
+				for (int k = -1; !pMap->map[j][i].bHorizonPower && k <= 1; k += 2)
+					for (int x = i + k;
+						((x >= 0 && x < pMap->w)					// 搜索越界
+							&& isConductiveObj(&pMap->map[j][x])	// 必须沿导电方块搜索
+							&& pMap->map[j][x].bPower				// 搜索路径必须完全充能
+							&& !pMap->map[j][i].bHorizonPower);		// 已标记充能后跳出
+						x += k)
+						if (isActivePower(x, j))
+							pMap->map[j][i].bHorizonPower = true;
+			}
+		}
+	}
+
 }
 
 // 放置物品到地图
@@ -1174,10 +1226,9 @@ void GetRsMapImage(
 
 					case RS_CROSS:
 					{
-						//SetWorkingImage(&cross);
 						setlinestyle(PS_SOLID, nPowderWidth);
 
-						if (up.bPower || down.bPower)
+						if (me.bUprightPower)
 						{
 							setfillcolor(colorPower);
 							setlinecolor(colorPower);
@@ -1190,7 +1241,7 @@ void GetRsMapImage(
 
 						line(draw_x + nHalfObjSize, draw_y, draw_x + nHalfObjSize, draw_y + nObjSize);	// 竖向电路
 
-						if (left.bPower || right.bPower)
+						if (me.bHorizonPower)
 						{
 							setfillcolor(colorPower);
 							setlinecolor(colorPower);
@@ -1201,7 +1252,7 @@ void GetRsMapImage(
 							setlinecolor(colorNoPower);
 						}
 
-						// cross方块横向电路的线段的点位置
+						// 交叉线绘制点位
 						POINT pCrossHLine[3] = {
 							{ draw_x,draw_y + nHalfObjSize },
 							{ draw_x + nHalfObjSize,draw_y + nHalfObjSize / 2 },
@@ -1210,9 +1261,6 @@ void GetRsMapImage(
 
 						// 横向电路（弯曲）
 						polyline(pCrossHLine, 3);
-
-						//putimage(l * nObjSize, l * nObjSize, &cross);
-
 					}
 					break;
 
@@ -1322,7 +1370,7 @@ void GetArguments(const char* cmd, char*** chCmdsArray_out, int* nArgsNum_out)
 		if (cmd[i] == ' ')
 			nArgsNum++;
 
-	int nMaxCmdSize = strlen(cmd) + 1;
+	int nMaxCmdSize = (int)strlen(cmd) + 1;
 	char** chCmdsArray = new char* [nArgsNum];
 	for (int i = 0; i < nArgsNum; i++)
 	{
@@ -1906,7 +1954,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			, x, y, import_map.w, import_map.h, x, y, x + import_map.w, y + import_map.h);
 
 		wchar_t wstr[512] = { 0 };
-		MultiByteToWideChar(CP_ACP, 0, warning, strlen(warning), wstr, strlen(warning));
+		MultiByteToWideChar(CP_ACP, 0, warning, (int)strlen(warning), wstr, (int)strlen(warning));
 
 		if (MessageBox(GetConsoleWindow(), wstr, L"确定？", MB_OKCANCEL) == IDOK)
 		{
@@ -2106,12 +2154,13 @@ void HelpBox()
 }
 
 WCHAR strMapSize[2][12];	// 在输入框中存储地图大小数据
+#define IDC_EDIT1	100
+#define IDC_EDIT2	101
+#define IDC_BUTTON	102
 bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTANCE hInstance)
 {
 	static HWND hEdit[2];
 	static HWND hBtn;
-	const int nEditID[2] = { 100,101 };
-	const int nBtnID = 102;
 
 	switch (msg)
 	{
@@ -2119,20 +2168,20 @@ bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTAN
 		hEdit[0] = CreateWindow(L"edit", strMapSize[0],
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			60, 30, 40, 20,
-			hWnd, (HMENU)nEditID[0], hInstance, NULL);
+			hWnd, (HMENU)IDC_EDIT1, hInstance, NULL);
 		hEdit[1] = CreateWindow(L"edit", strMapSize[1],
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			60, 55, 40, 20,
-			hWnd, (HMENU)nEditID[0], hInstance, NULL);
+			hWnd, (HMENU)IDC_EDIT2, hInstance, NULL);
 		hBtn = CreateWindow(L"button", L"Done",
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			160, 40, 60, 30,
-			hWnd, (HMENU)nBtnID, hInstance, NULL);
+			hWnd, (HMENU)IDC_BUTTON, hInstance, NULL);
 		break;
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case nBtnID:
+		case IDC_BUTTON:
 		{
 			GetWindowText(hEdit[0], strMapSize[0], 12);
 			GetWindowText(hEdit[1], strMapSize[1], 12);
@@ -2150,7 +2199,7 @@ bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTAN
 		outtextxy(30, 55, L"高：");
 		settextcolor(GRAY);
 		settextstyle(14, 0, L"宋体");
-		outtextxy(30, 80, L"地图大小超出 50x50 或导致卡顿");
+		//outtextxy(30, 80, L"地图大小超出 50x50 或导致卡顿");
 		END_TASK();
 		break;
 	}
@@ -2651,21 +2700,17 @@ int main(int argc, char* argv[])
 	// >>>
 	while (HiEasyX::isAliveWindow(hGraphicsWnd))
 	{
-		if (bFirst)
+		int r = ProcessMouseMsg(&map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler, &nSelect);
+
+		if ((r & DM_REDRAWMAP) || (r & DM_RESIZEMAP) || bFirst)
 		{
 			RunRsMap(&map);
 		}
-
-		int r = ProcessMouseMsg(&map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler, &nSelect);
-		bool resize = false;
-
-		RunRsMap(&map);
 
 		// 窗口拉伸消息处理
 		if (HiEasyX::isWindowSizeChanged(hGraphicsWnd) || bFirst)
 		{
 			WindowSized();
-			resize = true;
 		}
 
 		if ((r & DM_TOOLBAR) || bFirst)
@@ -2677,12 +2722,12 @@ int main(int argc, char* argv[])
 			|| (r & DM_REDRAWMAP)
 			|| (r & DM_RESIZEMAP)
 			|| (r & DM_ZOOM)
-			|| resize || bFirst)
+			|| bFirst)
 		{
 			Render(
 				&map,
 				(r & DM_REDRAWMAP) || bFirst,
-				(r & DM_RESIZEMAP) || resize || bFirst,
+				(r & DM_RESIZEMAP) || bFirst,
 				(r & DM_ZOOM) || bFirst,
 				offset_x, offset_y, zoom, bShowXY, bShowRuler
 			);
