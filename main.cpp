@@ -288,10 +288,10 @@ bool isConductiveObj2(RsObj* obj)
 }
 
 // 判断在某个方向上是否有电能流入
-// x, y 当前方块坐标
-// kx, ky 搜索方向（只能其中一个为 0，一个为正负 1）
-// pPowerList, p_nPowerCount 如果有电，传回的供电表
-// p_bPower 给电的方块是否为电源
+// x, y							当前方块坐标
+// kx, ky						搜索方向（只能其中一个为 0，一个为正负 1）
+// pPowerList, p_nPowerCount	如果有电，传回的供电表
+// p_bPower						给电的方块是否为电源
 //
 // 若 p_bPower 返回为 true，则需要在外部释放 pPowerList
 bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
@@ -387,6 +387,10 @@ bool JoinPowerList_AcceptPower(RsObj* pObj, POINT* pPowerList, int nCount, bool 
 	{
 		delete pPowerList;
 	}
+
+	if (nCount > 0 && pObj->nType == RS_CROSS && r == 0)
+		return true;
+	
 	return r;
 }
 
@@ -626,7 +630,7 @@ void RunRsMap(RsMap* pMap)
 	{
 		for (int j = 0; j < pMap->h; j++)
 		{
-			if (pMap->map[j][i].nType == RS_CROSS)
+			if (pMap->map[j][i].nType == RS_CROSS && pMap->map[j][i].bPower)
 			{
 				// 预设为 false
 				pMap->map[j][i].bUprightPower = false;
@@ -1036,18 +1040,6 @@ IMAGE zoomImage(IMAGE* pImg, int newWidth, int newHeight = 0)
 			int yt = i * pImg->getheight() / newHeight;
 			newDr[i * newWidth + j] = oldDr[xt + yt * pImg->getwidth()];
 			// 实现逐行加载图片
-			/*byte return_value = (GetRValue(oldDr[xt + yt * pImg->getwidth()]) +
-				GetRValue(oldDr[xt + yt * pImg->getwidth() + 1]) +
-				GetRValue(oldDr[xt + (yt + 1) * pImg->getwidth()]) +
-				GetRValue(oldDr[xt + (yt + 1) * pImg->getwidth() + 1])) / 4;
-			byte g = (GetGValue(oldDr[xt + yt * pImg->getwidth()]) +
-				GetGValue(oldDr[xt + yt * pImg->getwidth()] + 1) +
-				GetGValue(oldDr[xt + (yt + 1) * pImg->getwidth()]) +
-				GetGValue(oldDr[xt + (yt + 1) * pImg->getwidth()]) + 1) / 4;
-			byte b = (GetBValue(oldDr[xt + yt * pImg->getwidth()]) +
-				GetBValue(oldDr[xt + yt * pImg->getwidth()] + 1) +
-				GetBValue(oldDr[xt + (yt + 1) * pImg->getwidth()]) +
-				GetBValue(oldDr[xt + (yt + 1) * pImg->getwidth() + 1])) / 4;*/
 			byte r = GetRValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte g = GetGValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte b = GetBValue(oldDr[xt + yt * pImg->getwidth()]);
@@ -1124,6 +1116,7 @@ void GetRsMapImage(
 			settextstyle(10, 0, L"黑体");
 			setbkmode(TRANSPARENT);
 
+			// 不显示坐标时，背景色微调，便于辨认
 			if (!bShowXY || !bShowRuler)
 			{
 				setbkcolor(RGB(20, 20, 20));
@@ -2389,7 +2382,10 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 							HiEasyX::BeginTask();
 							break;
 						}
-						return_value |= DM_REDRAWMAP;
+
+						// 操作非空方块，重绘
+						if (map->map[nClickMapY][nClickMapX].nType != RS_NULL)
+							return_value |= DM_REDRAWMAP;
 					}
 				}
 			}
@@ -2419,9 +2415,12 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				{
 					if (PointIsInMap(map, nClickMapX, nClickMapY))
 					{
-						map->map[nClickMapY][nClickMapX].nType = RS_NULL;
-						map->map[nClickMapY][nClickMapX].bPower = false;
-						return_value |= DM_REDRAWMAP;
+						if (map->map[nClickMapY][nClickMapX].nType != RS_NULL)
+						{
+							map->map[nClickMapY][nClickMapX].nType = RS_NULL;
+							map->map[nClickMapY][nClickMapX].bPower = false;
+							return_value |= DM_REDRAWMAP;
+						}
 					}
 				}
 
