@@ -12,11 +12,11 @@ IMAGE imgCursor;							// 鼠标（仅显示在工具栏）
 IMAGE imgPowder;							// 红石粉（仅显示在工具栏）
 IMAGE imgCross;								// 交叉线（仅显示在工具栏）
 
-COLORREF colorPower = /*RGB(200, 0, 0)*/RGB(0, 240, 0);			// 有电的颜色
-COLORREF colorNoPower = /*RGB(100, 0, 0)*/RGB(100, 100, 100);	// 无电的颜色
+COLORREF colorPower = RGB(200, 0, 0)/*RGB(0, 240, 0)*/;			// 有电的颜色
+COLORREF colorNoPower = RGB(100, 0, 0)/*RGB(100, 100, 100)*/;	// 无电的颜色
 
 // 红石线粗
-int nPowderWidth = /*4*/3;
+int nPowderWidth = 7;
 
 // 红石地图输出坐标
 int nMapOutX = 0, nMapOutY = 20;
@@ -196,12 +196,14 @@ void GetRsMapImage(
 						//fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2 - 1);
 						setlinestyle(PS_SOLID, nPowderWidth);
 
+						int distance = 2;
+
 						// 实时绘制红石粉
 						if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
 						{
 							if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
 							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y);
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + distance);
 								bConnect = true;
 							}
 						}
@@ -209,7 +211,7 @@ void GetRsMapImage(
 						{
 							if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
 							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize);
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize - distance);
 								bConnect = true;
 							}
 						}
@@ -217,7 +219,7 @@ void GetRsMapImage(
 						{
 							if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
 							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x, draw_y + nHalfObjSize);
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + distance, draw_y + nHalfObjSize);
 								bConnect = true;
 							}
 						}
@@ -225,7 +227,7 @@ void GetRsMapImage(
 						{
 							if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
 							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize, draw_y + nHalfObjSize);
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize - distance, draw_y + nHalfObjSize);
 								bConnect = true;
 							}
 						}
