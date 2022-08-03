@@ -304,14 +304,30 @@ void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 			}
 		}
 
+		//
+		// 现在有两种方案。
+		// 1.	在 CheckPower 完全执行完毕后，再完全遍历每个电源的供电表，如果供电都无效，而自己野无效，则需要设置自己有效。
+		// 2.	直接在下方判断：如果全是无效电源，而自己也无效，则需要将自己设置为有效
+		//
+
 		// 若存在通电电源，则熄灭
+		bool any_efficient_power = false;
 		for (int i = 0; i < pObj->nPowerCount; i++)
 		{
 			Power p = pObj->pPowerList[i];
 			if (pMap->map[p.y][p.x].bPowered)
 			{
-				pObj->bPowered = false;
+				any_efficient_power = true;
+				break;
 			}
+		}
+		if (any_efficient_power)
+		{
+			pObj->bPowered = false;
+		}
+		else
+		{
+			pObj->bPowered = true;
 		}
 	}
 
