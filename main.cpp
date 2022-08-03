@@ -30,7 +30,7 @@ const WCHAR strVersion[] = L"Version 1.4";
 //   |      / !\    Warning                                              |
 //   |     /____\                                                        |
 //   |                如果项目有更新，请更新 main.cpp 顶部的注释上的时间，   |
-//   |                strVersion 上的版本，./res/help/help.html 上的    |
+//   |                strVersion 上的版本，./res/help/help.html 上的      |
 //   |                更新日志，修改时间。                                 |
 //   |___________________________________________________________________|
 //
@@ -59,6 +59,27 @@ enum RedstoneTowards
 	RS_TO_LEFT	// 朝向左
 };
 
+struct Power
+{
+	bool isPowerOfCross = false;	// 是否为交叉线的电源
+
+	// 规定：如果同一个电源供给交叉线的两个方向，则应当存储两个电源，分别标识为水平电源和竖直电源
+	bool horizon = false;			// 是水平方向的电源（仅用于交叉线）
+	bool upright = false;			// 是垂直方向的电源（仅用于交叉线）
+
+	int x = -1, y = -1;
+
+	Power()
+	{
+	}
+
+	Power(POINT pt)
+	{
+		x = pt.x;
+		y = pt.y;
+	}
+};
+
 // 红石方块定义
 typedef struct RedstoneObject
 {
@@ -66,11 +87,11 @@ typedef struct RedstoneObject
 	bool bPower = false;			// 是否充能（对于交叉线，任意方向充能都会标识）
 	int nTowards = RS_TO_UP;		// 朝向
 
-	bool bUprightPower = false;		// 竖直方向是否充能（仅用于交叉线）
-	bool bHorizonPower = false;		// 水平方向是否充能（仅用于交叉线）
+	bool bUprightPower = false;		// 竖直方向是否存在供电源（仅用于交叉线）
+	bool bHorizonPower = false;		// 水平方向是否存在供电源（仅用于交叉线）
 
 	int nPowerCount = 0;			// 供电数量
-	POINT* pPowerList = NULL;		// 供电电源坐标
+	Power* pPowerList = NULL;		// 供电电源坐标
 
 }RsObj;
 
@@ -128,13 +149,22 @@ bool operator==(POINT a, POINT b)
 }
 
 // 查找供电表中是否有某个电源
-bool SearchPowerInList(POINT* pPowerList, int nCount, POINT pPower)
+bool SearchPowerInList(Power* pPowerList, int nCount, Power pPower)
 {
 	for (int i = 0; i < nCount; i++)
 	{
-		if (pPowerList[i] == pPower)
+		bool xy_equal = pPowerList[i].x == pPower.x && pPowerList[i].y == pPower.y;
+
+		if (xy_equal)
 		{
-			return true;
+			if (pPowerList[i].isPowerOfCross)
+			{
+				if (pPowerList[i].horizon == pPower.horizon
+					&& pPowerList[i].upright == pPower.upright)
+					return true;
+			}
+			else
+				return true;
 		}
 	}
 	return false;
@@ -142,42 +172,38 @@ bool SearchPowerInList(POINT* pPowerList, int nCount, POINT pPower)
 
 // 添加多个供电源到供电表
 // 返回添加成功的个数（即与原表不重复的项的个数）
-int AddToPowerList(POINT** pOldPowerList, int* p_nOldCount, POINT* pPowerList, int nCount)
+int AddToPowerList(RsObj* pObj, Power* pPowerList, int nCount)
 {
-	POINT* pNewList = new POINT[*p_nOldCount + nCount];
+	Power* pNewList = new Power[pObj->nPowerCount + nCount];
 	int sum = 0;	// 去重后加入表中的数量
 	if (!pNewList)
 	{
 		return 0;
 	}
-	if (*pOldPowerList != NULL)
+	if (pObj->pPowerList != NULL)
 	{
-		memcpy(pNewList, *pOldPowerList, *p_nOldCount * sizeof(POINT));
+		memcpy(pNewList, pObj->pPowerList, pObj->nPowerCount * sizeof(Power));
 		for (int i = 0; i < nCount; i++)
 		{
-			if (!SearchPowerInList(*pOldPowerList, *p_nOldCount, pPowerList[i]))
+			if (!SearchPowerInList(pNewList, pObj->nPowerCount + sum, pPowerList[i]))
 			{
-				pNewList[*p_nOldCount + sum] = pPowerList[i];
+				pNewList[pObj->nPowerCount + sum] = pPowerList[i];
 				sum++;
 			}
 		}
-		*p_nOldCount += sum;
-		delete* pOldPowerList;
+		pObj->nPowerCount += sum;
+		delete[] pObj->pPowerList;
 	}
 	else
 	{
-		memcpy(pNewList, pPowerList, nCount * sizeof(POINT));
-		*p_nOldCount = nCount;
+		memcpy(pNewList, pPowerList, nCount * sizeof(Power));
+		pObj->nPowerCount = nCount;
 		sum = nCount;
 	}
-	*pOldPowerList = pNewList;
-	return sum;
-}
 
-// 添加多个供电源到供电表
-int AddToPowerList(RsObj* pObj, POINT* pPowerList, int nCount)
-{
-	return AddToPowerList(&pObj->pPowerList, &pObj->nPowerCount, pPowerList, nCount);
+	pObj->pPowerList = pNewList;
+	return sum;
+
 }
 
 // 得到空方块
@@ -294,7 +320,7 @@ bool isConductiveObj2(RsObj* obj)
 // p_bPower						给电的方块是否为电源
 //
 // 若 p_bPower 返回为 true，则需要在外部释放 pPowerList
-bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
+bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
 {
 	bool r = false;					// 标记是否检索到电能
 	int nx = x + kx, ny = y + ky;	// 查找坐标
@@ -320,7 +346,9 @@ bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerLi
 
 			// CROSS 需要继续深入查找
 		case RS_CROSS:
-			return isPowerTransfer(pMap, nx, ny, kx, ky, pPowerList, p_nPowerCount, p_bPower);
+			if (kx) return obj.bHorizonPower;
+			if (ky) return obj.bUprightPower;
+			//return isPowerTransfer(pMap, nx, ny, kx, ky, pPowerList, p_nPowerCount, p_bPower);
 			break;
 
 			// 其余方块可以直接标记
@@ -334,8 +362,7 @@ bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerLi
 		// 电源供电，则供电表中只返回此电源
 		if (obj.bPower)
 		{
-			POINT* p = new POINT;
-			*p = { nx,ny };
+			Power* p = new Power({ nx, ny });
 			*pPowerList = p;
 			*p_nPowerCount = 1;
 			*p_bPower = true;
@@ -347,6 +374,30 @@ bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerLi
 			*p_nPowerCount = obj.nPowerCount;
 			*p_bPower = false;
 		}
+
+		// 交叉线需要标记电源方向
+		if (pMap->map[y][x].nType == RS_CROSS)
+		{
+			bool horizon = false;
+			bool upright = false;
+			if (kx)
+			{
+				horizon = true;
+				pMap->map[y][x].bHorizonPower = true;
+			}
+			if (ky)
+			{
+				upright = true;
+				pMap->map[y][x].bUprightPower = true;
+			}
+			for (int i = 0; i < *p_nPowerCount; i++)
+			{
+				((*pPowerList)[i]).isPowerOfCross = true;
+				((*pPowerList)[i]).horizon = horizon;
+				((*pPowerList)[i]).upright = upright;
+			}
+		}
+
 		return true;
 	}
 	else
@@ -356,31 +407,31 @@ bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, POINT** pPowerLi
 }
 
 // 上面是否来电
-bool isUpPower(RsMap* pMap, int x, int y, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
+bool isUpPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
 {
 	return isPowerTransfer(pMap, x, y, 0, -1, pPowerList, p_nPowerCount, p_bPower);
 }
 
 // 下面是否来电
-bool isDownPower(RsMap* pMap, int x, int y, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
+bool isDownPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
 {
 	return isPowerTransfer(pMap, x, y, 0, 1, pPowerList, p_nPowerCount, p_bPower);
 }
 
 // 左边是否来电
-bool isLeftPower(RsMap* pMap, int x, int y, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
+bool isLeftPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
 {
 	return isPowerTransfer(pMap, x, y, -1, 0, pPowerList, p_nPowerCount, p_bPower);
 }
 
 // 右边是否来电
-bool isRightPower(RsMap* pMap, int x, int y, POINT** pPowerList, int* p_nPowerCount, bool* p_bPower)
+bool isRightPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
 {
 	return isPowerTransfer(pMap, x, y, 1, 0, pPowerList, p_nPowerCount, p_bPower);
 }
 
 // 在接受附近电流时加入新的供电源
-bool JoinPowerList_AcceptPower(RsObj* pObj, POINT* pPowerList, int nCount, bool bPower)
+bool JoinPowerList_AcceptPower(RsObj* pObj, Power* pPowerList, int nCount, bool bPower)
 {
 	int r = AddToPowerList(pObj, pPowerList, nCount);
 	if (bPower)
@@ -388,23 +439,20 @@ bool JoinPowerList_AcceptPower(RsObj* pObj, POINT* pPowerList, int nCount, bool 
 		delete pPowerList;
 	}
 
-	if (nCount > 0 && pObj->nType == RS_CROSS && r == 0)
-		return true;
-	
 	return r;
 }
 
 // 接受附近电流，返回是否接受到电流
 bool AcceptPowerNearby(RsMap* map, int x, int y)
 {
-	POINT* pPowerList = NULL;
+	Power* pPowerList = NULL;
 	int nPowerCount = 0;
 	bool bPower = false;
 
 	RsObj* pObj = &map->map[y][x];	// 当前方块
 
 	// 接收四个方向的信号
-	bool (*funcs[])(RsMap*, int, int, POINT**, int*, bool*) = { isLeftPower, isRightPower, isUpPower, isDownPower };
+	bool (*funcs[])(RsMap*, int, int, Power**, int*, bool*) = { isLeftPower, isRightPower, isUpPower, isDownPower };
 	bool result = false;
 	for (int i = 0; i < 4; i++)
 	{
@@ -453,16 +501,16 @@ bool AcceptPowerNearby(RsMap* map, int x, int y)
 	return result;
 }
 
-void ConductPower(RsMap* pMap, int x, int y, POINT pPower);
+void ConductPower(RsMap* pMap, int x, int y, Power pPower);
 
 // 执行关于普通方块的处理（含红石火把）
-// pPower 发起电源位置
-void RunObj(RsMap* pMap, int x, int y, POINT pPower)
+// pos 发起电源位置
+void RunObj(RsMap* pMap, int x, int y, Power pPower)
 {
 	RsObj* pObj = &pMap->map[y][x];
 
 	//// 电路没有闭合，则继续延伸
-	//if (!SearchPowerInList(pObj->pPowerList, pObj->nPowerCount, pPower))
+	//if (!SearchPowerInList(pObj->pPowerList, pObj->nPowerCount, pos))
 	//{
 
 	// 接受到附近电流
@@ -480,8 +528,8 @@ void RunObj(RsMap* pMap, int x, int y, POINT pPower)
 }
 
 // 向四周导电
-// pPower 原电源位置
-void ConductPower(RsMap* pMap, int x, int y, POINT pPower)
+// pos 原电源位置
+void ConductPower(RsMap* pMap, int x, int y, Power pPower)
 {
 	// 只对普通方块和红石火把进行初步导电
 	if (x - 1 >= 0 && isNormalObj(&pMap->map[y][x - 1]))
@@ -505,9 +553,9 @@ void ConductPower(RsMap* pMap, int x, int y, POINT pPower)
 // 确认电源状态
 // pPower		电源位置
 // flagFirst	是否为第一次调用
-void CheckPower(RsMap* pMap, POINT pPower, bool flagFirst = false)
+void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 {
-	static POINT* pVisited = NULL;
+	static RsObj pVisited;	// 利用物体的 power 表存储已遍历点
 	static int nCount = 0;
 
 	RsObj* pObj = &pMap->map[pPower.y][pPower.x];
@@ -516,22 +564,36 @@ void CheckPower(RsMap* pMap, POINT pPower, bool flagFirst = false)
 	if (pObj->nType == RS_TORCHE)
 	{
 		// 记录足迹
-		AddToPowerList(&pVisited, &nCount, &pPower, 1);
+		AddToPowerList(&pVisited, &pPower, 1);
+		nCount++;
 
 		// 递归确认所有电源的状态
 		for (int i = 0; i < pObj->nPowerCount; i++)
 		{
 			// 重复项不再检验
-			if (!SearchPowerInList(pVisited, nCount, pObj->pPowerList[i]))
+			//if (!SearchPowerInList(pVisited.pPowerList, nCount, pObj->pPowerList[i]))
+			bool repeat = false;
+			for (int j = 0; j < nCount; j++)
 			{
-				CheckPower(pMap, pObj->pPowerList[i]);
+				if (pVisited.pPowerList[j].x == pObj->pPowerList[i].x
+					&& pVisited.pPowerList[j].y == pObj->pPowerList[i].y)
+				{
+					repeat = true;
+					break;
+				}
 			}
+			if (repeat)
+			{
+				continue;
+			}
+
+			CheckPower(pMap, pObj->pPowerList[i]);
 		}
 
 		// 若存在通电电源，则熄灭
 		for (int i = 0; i < pObj->nPowerCount; i++)
 		{
-			POINT p = pObj->pPowerList[i];
+			Power p = pObj->pPowerList[i];
 			if (pMap->map[p.y][p.x].bPower)
 			{
 				pObj->bPower = false;
@@ -540,10 +602,10 @@ void CheckPower(RsMap* pMap, POINT pPower, bool flagFirst = false)
 	}
 
 	// 位于递归头，回收内存
-	if (flagFirst && pVisited != NULL)
+	if (flagFirst && pVisited.pPowerList != NULL)
 	{
-		delete pVisited;
-		pVisited = NULL;
+		delete[] pVisited.pPowerList;
+		pVisited.pPowerList = NULL;
 		nCount = 0;
 	}
 }
@@ -569,6 +631,10 @@ void RunRsMap(RsMap* pMap)
 				pMap->map[j][i].bPower = false;
 			}
 
+			// 清空交叉线电源状态
+			pMap->map[j][i].bUprightPower = false;
+			pMap->map[j][i].bHorizonPower = false;
+
 			// 清空所有供电表
 			if (pMap->map[j][i].pPowerList != NULL)
 			{
@@ -587,7 +653,7 @@ void RunRsMap(RsMap* pMap)
 			if (isPowerObj(&pMap->map[j][i]) && pMap->map[j][i].bPower)
 			{
 				// 导电
-				ConductPower(pMap, i, j, { i,j });
+				ConductPower(pMap, i, j, Power({ i, j }));
 			}
 		}
 	}
@@ -599,7 +665,7 @@ void RunRsMap(RsMap* pMap)
 		{
 			if (isPowerObj(&pMap->map[j][i]))
 			{
-				CheckPower(pMap, { i, j }, true);
+				CheckPower(pMap, Power({ i, j }), true);
 			}
 		}
 	}
@@ -615,7 +681,7 @@ void RunRsMap(RsMap* pMap)
 				// 遍历供能表，给电
 				for (int k = 0; k < pMap->map[j][i].nPowerCount; k++)
 				{
-					POINT p = pMap->map[j][i].pPowerList[k];
+					Power p = pMap->map[j][i].pPowerList[k];
 					if (pMap->map[p.y][p.x].bPower)
 					{
 						pMap->map[j][i].bPower = true;
@@ -626,52 +692,48 @@ void RunRsMap(RsMap* pMap)
 	}
 
 	// 所有导体的充能状态设置完毕后，再次对交叉线单独设置充能状态
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			if (pMap->map[j][i].nType == RS_CROSS && pMap->map[j][i].bPower)
-			{
-				// 预设为 false
-				pMap->map[j][i].bUprightPower = false;
-				pMap->map[j][i].bHorizonPower = false;
+	//for (int i = 0; i < pMap->w; i++)
+	//{
+	//	for (int j = 0; j < pMap->h; j++)
+	//	{
+	//		if (pMap->map[j][i].nType == RS_CROSS && pMap->map[j][i].bPower)
+	//		{
+	//			// 判断一方块是否为有效电源
+	//			auto isActivePower = [pMap](int x, int y) {
+	//				if (pMap->map[y][x].bPower)
+	//					if (isConductiveObj(&pMap->map[y][x]) && pMap->map[y][x].nType != RS_CROSS)
+	//						return true;
+	//				return false;
+	//			};
 
-				// 判断一方块是否为有效电源
-				auto isActivePower = [pMap](int x, int y) {
-					if (pMap->map[y][x].bPower)
-						if (isConductiveObj(&pMap->map[y][x]) && pMap->map[y][x].nType != RS_CROSS)
-							return true;
-					return false;
-				};
+	//			// 由于交叉线在水平和垂直方向互不干扰，所以若某个方向充能，沿此方向搜索一定能遇到充能方块
 
-				// 由于交叉线在水平和垂直方向互不干扰，所以若某个方向充能，沿此方向搜索一定能遇到充能方块
+	//			// 垂直方向搜索
+	//			// 若已标记垂直方向充能，则跳出
+	//			for (int k = -1; !pMap->map[j][i].bUprightPower && k <= 1; k += 2)
+	//				for (int y = j + k;
+	//					((y >= 0 && y < pMap->h)					// 搜索越界
+	//						&& isConductiveObj(&pMap->map[y][i])	// 必须沿导电方块搜索
+	//						&& pMap->map[y][i].bPower				// 搜索路径必须完全充能
+	//						&& !pMap->map[j][i].bUprightPower);		// 已标记充能后跳出
+	//					y += k)
+	//					if (isActivePower(i, y))
+	//						pMap->map[j][i].bUprightPower = true;
 
-				// 垂直方向搜索
-				// 若已标记垂直方向充能，则跳出
-				for (int k = -1; !pMap->map[j][i].bUprightPower && k <= 1; k += 2)
-					for (int y = j + k;
-						((y >= 0 && y < pMap->h)					// 搜索越界
-							&& isConductiveObj(&pMap->map[y][i])	// 必须沿导电方块搜索
-							&& pMap->map[y][i].bPower				// 搜索路径必须完全充能
-							&& !pMap->map[j][i].bUprightPower);		// 已标记充能后跳出
-						y += k)
-						if (isActivePower(i, y))
-							pMap->map[j][i].bUprightPower = true;
-
-				// 水平方向搜索
-				// 若已标记水平方向充能，则跳出
-				for (int k = -1; !pMap->map[j][i].bHorizonPower && k <= 1; k += 2)
-					for (int x = i + k;
-						((x >= 0 && x < pMap->w)					// 搜索越界
-							&& isConductiveObj(&pMap->map[j][x])	// 必须沿导电方块搜索
-							&& pMap->map[j][x].bPower				// 搜索路径必须完全充能
-							&& !pMap->map[j][i].bHorizonPower);		// 已标记充能后跳出
-						x += k)
-						if (isActivePower(x, j))
-							pMap->map[j][i].bHorizonPower = true;
-			}
-		}
-	}
+	//			// 水平方向搜索
+	//			// 若已标记水平方向充能，则跳出
+	//			for (int k = -1; !pMap->map[j][i].bHorizonPower && k <= 1; k += 2)
+	//				for (int x = i + k;
+	//					((x >= 0 && x < pMap->w)					// 搜索越界
+	//						&& isConductiveObj(&pMap->map[j][x])	// 必须沿导电方块搜索
+	//						&& pMap->map[j][x].bPower				// 搜索路径必须完全充能
+	//						&& !pMap->map[j][i].bHorizonPower);		// 已标记充能后跳出
+	//					x += k)
+	//					if (isActivePower(x, j))
+	//						pMap->map[j][i].bHorizonPower = true;
+	//		}
+	//	}
+	//}
 
 }
 
@@ -1005,7 +1067,7 @@ void ImageToSize(int width, int height, IMAGE* img)
 }
 
 /*
- *    参考自http://tieba.baidu.com/pPower/5218523817
+ *    参考自http://tieba.baidu.com/pos/5218523817
  *    函数名:zoomImage(IMAGE* pImg,int width，int height)
  *    参数说明:pImg是原图指针，width1和height1是目标图片的尺寸。
  *    函数功能:将图片进行缩放，返回目标图片 可以自定义长与宽，也可以只给长自动计算宽
@@ -1170,23 +1232,35 @@ void GetRsMapImage(
 						// 实时绘制红石粉
 						if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
 						{
-							line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y);
-							bConnect = true;
+							if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
+							{
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y);
+								bConnect = true;
+							}
 						}
 						if (y + 1 < map->h && down.nType != RS_NULL)	// line to down
 						{
-							line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize);
-							bConnect = true;
+							if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
+							{
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize);
+								bConnect = true;
+							}
 						}
 						if (x - 1 >= 0 && left.nType != RS_NULL)		// line to left
 						{
-							line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x, draw_y + nHalfObjSize);
-							bConnect = true;
+							if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
+							{
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x, draw_y + nHalfObjSize);
+								bConnect = true;
+							}
 						}
 						if (x + 1 < map->w && right.nType != RS_NULL)	// line to right
 						{
-							line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize, draw_y + nHalfObjSize);
-							bConnect = true;
+							if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
+							{
+								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize, draw_y + nHalfObjSize);
+								bConnect = true;
+							}
 						}
 
 						if (!bConnect)
