@@ -1,763 +1,48 @@
-///////////////////////////////////////////////
+ï»¿///////////////////////////////////////////////
 //
 //	MCRedstoneSimulator
 //	main.cpp
-//	ÎÒµÄÊÀ½çºìÊ¯Ä£ÄâÆ÷
+//	æˆ‘çš„ä¸–ç•Œçº¢çŸ³æ¨¡æ‹Ÿå™¨
 //	by huidong <mailkey@yeah.net>
 //
-//	×îºóĞŞ¸Ä£º2022.3.26
+//	æœ€åä¿®æ”¹ï¼š2022.3.26
 //
 
 #include "resource.h"
+
 #include "HiEasyX.h"
+#include "redstone.h"
+#include "painter.h"
+
 #include <stdio.h>
 #include <conio.h>
 #include <io.h>
 #include <direct.h>
 
+// ç‰ˆæœ¬ä¿¡æ¯
+const WCHAR strVersion[] = L"Version 1.4";
+
+// ç¼©æ”¾é™åˆ¶
 #define MAX_ZOOM 2.0
 #define MIN_ZOOM 0.1
 
-// °æ±¾ĞÅÏ¢
-const WCHAR strVersion[] = L"Version 1.4";
 
-//
-//    ___________________________________________________________________
-//   / Warning													      |X|\
-//   |___________________________________________________________________|
-//   |                                                                   |
-//   |       /\                                                          |
-//   |      / !\    Warning                                              |
-//   |     /____\                                                        |
-//   |                Èç¹ûÏîÄ¿ÓĞ¸üĞÂ£¬Çë¸üĞÂ main.cpp ¶¥²¿µÄ×¢ÊÍÉÏµÄÊ±¼ä£¬   |
-//   |                strVersion ÉÏµÄ°æ±¾£¬./res/help/help.html ÉÏµÄ      |
-//   |                ¸üĞÂÈÕÖ¾£¬ĞŞ¸ÄÊ±¼ä¡£                                 |
-//   |___________________________________________________________________|
-//
-//
-
-
-// ºìÊ¯·½¿éÖÖÀà
-enum RedstoneObjectTypes
-{
-	RS_NULL,	// ¿ÕÆø·½¿é£¨ÎŞ·½¿é£©
-	RS_POWDER,	// ºìÊ¯·Û
-	RS_ROD,		// À­¸Ë
-	RS_BUTTON,	// °´Å¥
-	RS_TORCHE,	// ºìÊ¯»ğ°Ñ
-	RS_LIGHT,	// ºìÊ¯µÆ
-	RS_RELAY,	// ÖĞ¼ÌÆ÷
-	RS_CROSS	// ½»²æÅÅÏß°å£¨²»ÊôÓÚ MC ·½¿é£¬½öÔÚÆ½Ãæ½»²æµçÂ·ÖĞ·¢»Ó×÷ÓÃ£©
-};
-
-// ºìÊ¯·½¿é³¯Ïò
-enum RedstoneTowards
-{
-	RS_TO_UP,	// ³¯ÏòÉÏ
-	RS_TO_RIGHT,// ³¯ÏòÓÒ
-	RS_TO_DOWN,	// ³¯ÏòÏÂ
-	RS_TO_LEFT	// ³¯Ïò×ó
-};
-
-struct Power
-{
-	bool isPowerOfCross = false;	// ÊÇ·ñÎª½»²æÏßµÄµçÔ´
-
-	// ¹æ¶¨£ºÈç¹ûÍ¬Ò»¸öµçÔ´¹©¸ø½»²æÏßµÄÁ½¸ö·½Ïò£¬ÔòÓ¦µ±´æ´¢Á½¸öµçÔ´£¬·Ö±ğ±êÊ¶ÎªË®Æ½µçÔ´ºÍÊúÖ±µçÔ´
-	bool horizon = false;			// ÊÇË®Æ½·½ÏòµÄµçÔ´£¨½öÓÃÓÚ½»²æÏß£©
-	bool upright = false;			// ÊÇ´¹Ö±·½ÏòµÄµçÔ´£¨½öÓÃÓÚ½»²æÏß£©
-
-	int x = -1, y = -1;
-
-	Power()
-	{
-	}
-
-	Power(POINT pt)
-	{
-		x = pt.x;
-		y = pt.y;
-	}
-};
-
-// ºìÊ¯·½¿é¶¨Òå
-typedef struct RedstoneObject
-{
-	int nType = RS_NULL;			// ·½¿éÖÖÀà
-	bool bPower = false;			// ÊÇ·ñ³äÄÜ£¨¶ÔÓÚ½»²æÏß£¬ÈÎÒâ·½Ïò³äÄÜ¶¼»á±êÊ¶£©
-	int nTowards = RS_TO_UP;		// ³¯Ïò
-
-	bool bUprightPower = false;		// ÊúÖ±·½ÏòÊÇ·ñ´æÔÚ¹©µçÔ´£¨½öÓÃÓÚ½»²æÏß£©
-	bool bHorizonPower = false;		// Ë®Æ½·½ÏòÊÇ·ñ´æÔÚ¹©µçÔ´£¨½öÓÃÓÚ½»²æÏß£©
-
-	int nPowerCount = 0;			// ¹©µçÊıÁ¿
-	Power* pPowerList = NULL;		// ¹©µçµçÔ´×ø±ê
-
-}RsObj;
-
-// ºìÊ¯µØÍ¼
-typedef struct RedstoneMap
-{
-	int w, h;		// µØÍ¼¿í¸ß
-	RsObj** map;	// µØÍ¼
-}RsMap;
-
-// È«¾Ö±äÁ¿£º·½¿éÍ¼Ïñ£¨Êı×éÏÂ±ê0±íÊ¾Î´³äÄÜÇé¿ö£¬Êı×éÏÂ±êÎª1±íÊ¾³äÄÜÇé¿ö£©
-
-IMAGE imgRod[2];							// À­¸Ë
-IMAGE imgButton[2];							// °´Å¥
-IMAGE imgTorche[2];							// ºìÊ¯»ğ°Ñ
-IMAGE imgLight[2];							// ºìÊ¯µÆ
-IMAGE imgRelay[2];							// ºìÊ¯ÖĞ¼ÌÆ÷
-IMAGE imgRelayRotated[2][3];				// Ğı×ªºóµÄºìÊ¯ÖĞ¼ÌÆ÷
-IMAGE imgCursor;							// Êó±ê£¨½öÏÔÊ¾ÔÚ¹¤¾ßÀ¸£©
-IMAGE imgPowder;							// ºìÊ¯·Û£¨½öÏÔÊ¾ÔÚ¹¤¾ßÀ¸£©
-IMAGE imgCross;								// ½»²æÏß£¨½öÏÔÊ¾ÔÚ¹¤¾ßÀ¸£©
-
-COLORREF colorPower = /*RGB(200, 0, 0)*/RGB(0, 240, 0);			// ÓĞµçµÄÑÕÉ«
-COLORREF colorNoPower = /*RGB(100, 0, 0)*/RGB(100, 100, 100);	// ÎŞµçµÄÑÕÉ«
-
-// ºìÊ¯Ïß´Ö
-int nPowderWidth = /*4*/3;
-
-// ÎïÌå´óĞ¡
-int nObjSize;
-int nHalfObjSize;
-
-// È«¾Ö°´Å¥Î»ÖÃĞÅÏ¢
+// å…¨å±€æŒ‰é’®ä½ç½®ä¿¡æ¯
 RECT rctHelpBtn;
 RECT rctSaveBtn;
 RECT rctResizeBtn;
 
-// ´°¿Ú¾ä±ú
-HWND hGraphicsWnd;	// Ö÷»æÍ¼´°¿Ú
-HWND hToolBarWnd;	// ¹¤¾ßÀ¸´°¿Ú
+// çª—å£å¥æŸ„
+HWND hGraphicsWnd;	// ä¸»ç»˜å›¾çª—å£
+HWND hToolBarWnd;	// å·¥å…·æ çª—å£
 
-// ºìÊ¯µØÍ¼Êä³ö×ø±ê
-int nMapOutX = 0, nMapOutY = 20;
 
-// ±ê³ß¿í¸ß
-int nRulerWidth = 20;
-int nRulerHeight = 20;
 
 
-// º¯Êı¶¨Òå
 
-bool operator==(POINT a, POINT b)
-{
-	return a.x == b.x && a.y == b.y;
-}
 
-// ²éÕÒ¹©µç±íÖĞÊÇ·ñÓĞÄ³¸öµçÔ´
-bool SearchPowerInList(Power* pPowerList, int nCount, Power pPower)
-{
-	for (int i = 0; i < nCount; i++)
-	{
-		bool xy_equal = pPowerList[i].x == pPower.x && pPowerList[i].y == pPower.y;
-
-		if (xy_equal)
-		{
-			if (pPowerList[i].isPowerOfCross)
-			{
-				if (pPowerList[i].horizon == pPower.horizon
-					&& pPowerList[i].upright == pPower.upright)
-					return true;
-			}
-			else
-				return true;
-		}
-	}
-	return false;
-}
-
-// Ìí¼Ó¶à¸ö¹©µçÔ´µ½¹©µç±í
-// ·µ»ØÌí¼Ó³É¹¦µÄ¸öÊı£¨¼´ÓëÔ­±í²»ÖØ¸´µÄÏîµÄ¸öÊı£©
-int AddToPowerList(RsObj* pObj, Power* pPowerList, int nCount)
-{
-	Power* pNewList = new Power[pObj->nPowerCount + nCount];
-	int sum = 0;	// È¥ÖØºó¼ÓÈë±íÖĞµÄÊıÁ¿
-	if (!pNewList)
-	{
-		return 0;
-	}
-	if (pObj->pPowerList != NULL)
-	{
-		memcpy(pNewList, pObj->pPowerList, pObj->nPowerCount * sizeof(Power));
-		for (int i = 0; i < nCount; i++)
-		{
-			if (!SearchPowerInList(pNewList, pObj->nPowerCount + sum, pPowerList[i]))
-			{
-				pNewList[pObj->nPowerCount + sum] = pPowerList[i];
-				sum++;
-			}
-		}
-		pObj->nPowerCount += sum;
-		delete[] pObj->pPowerList;
-	}
-	else
-	{
-		memcpy(pNewList, pPowerList, nCount * sizeof(Power));
-		pObj->nPowerCount = nCount;
-		sum = nCount;
-	}
-
-	pObj->pPowerList = pNewList;
-	return sum;
-
-}
-
-// µÃµ½¿Õ·½¿é
-RsObj GetNullObj()
-{
-	return RsObj{ RS_NULL ,false ,RS_TO_UP,NULL };
-}
-
-// ³õÊ¼»¯ºìÊ¯µØÍ¼
-RsMap InitRsMap(int w, int h)
-{
-	RsMap map;
-	map.w = w;
-	map.h = h;
-
-	map.map = new RsObj * [h];
-
-	for (int i = 0; i < h; i++)
-	{
-		map.map[i] = new RsObj[w];
-
-		for (int j = 0; j < w; j++)
-		{
-			map.map[i][j] = GetNullObj();
-		}
-	}
-
-	return map;
-}
-
-// ¼ÓÔØ·½¿éÍ¼Ïñ
-void loadimages()
-{
-	loadimage(&imgRod[0], L"./res/objs/null/rod/rod.bmp");
-	loadimage(&imgRod[1], L"./res/objs/power/rod/rod.bmp");
-
-	loadimage(&imgButton[0], L"./res/objs/null/button/button.bmp");
-	loadimage(&imgButton[1], L"./res/objs/power/button/button.bmp");
-
-	loadimage(&imgTorche[0], L"./res/objs/null/torche/torche.bmp");
-	loadimage(&imgTorche[1], L"./res/objs/power/torche/torche.bmp");
-
-	loadimage(&imgLight[0], L"./res/objs/null/light/light.bmp");
-	loadimage(&imgLight[1], L"./res/objs/power/light/light.bmp");
-
-	loadimage(&imgRelay[0], L"./res/objs/null/relay/relay.bmp");
-	loadimage(&imgRelay[1], L"./res/objs/power/relay/relay.bmp");
-
-	// Ğı×ªÖĞ¼ÌÆ÷
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j < 3; j++)
-			rotateimage(&imgRelayRotated[i][j], &imgRelay[i], PI / 2 * (j + 1));
-
-	// È·¶¨Í¼Ïñ´óĞ¡
-	nObjSize = imgLight[0].getwidth();
-	nHalfObjSize = nObjSize / 2;
-
-	// »æÖÆÊó±ê
-	SetWorkingImage(&imgCursor);
-	imgCursor.Resize(nObjSize, nObjSize);
-	POINT pCursor[9] = { {8,24},{8,3},{21,16},{21,18},{16,18},{19,25},{18,26},{16,26},{13,20} };
-	polygon(pCursor, 9);
-
-	// ·ÛÄ©
-	SetWorkingImage(&imgPowder);
-	imgPowder.Resize(nObjSize, nObjSize);
-	POINT pPowder[4] = { {10,27},{10,12},{19,12},{19,2} };
-	setlinestyle(PS_SOLID, nPowderWidth);
-	setlinecolor(colorPower);
-	polyline(pPowder, 4);
-
-	// ½»²æÏß
-	SetWorkingImage(&imgCross);
-	imgCross.Resize(nObjSize, nObjSize);
-	setlinestyle(PS_SOLID, nPowderWidth);
-	setlinecolor(colorPower);
-	line(nHalfObjSize, 10, nHalfObjSize, nObjSize);
-	setlinecolor(colorNoPower);
-	POINT pCross[5] = { { 0, nHalfObjSize + 10 },{ 5, nHalfObjSize + 10 },
-		{ nHalfObjSize, nHalfObjSize / 2 + 10 },{ nObjSize - 5, nHalfObjSize + 10 },{ nObjSize, nHalfObjSize + 10 } };
-	polyline(pCross, 5);
-}
-
-// ÅĞ¶ÏÒ»ÎïÌåÊÇ·ñÎªĞÅºÅÔ´·½¿é
-bool isPowerObj(RsObj* obj)
-{
-	return obj->nType == RS_ROD || obj->nType == RS_BUTTON || obj->nType == RS_TORCHE;
-}
-
-// ÊÇ·ñÎªÆÕÍ¨·½¿é£¨ÎŞÂÛÊÇ·ñ¿Éµ¼µç£¬º¬ºìÊ¯»ğ°Ñ£¬²»º¬ÆäËûµçÔ´·½¿é£©
-bool isNormalObj(RsObj* obj)
-{
-	return (obj->nType != RS_NULL && !isPowerObj(obj)) || obj->nType == RS_TORCHE;
-}
-
-// ÊÇ·ñÎª¿Éµ¼µç·½¿é£¨É¸Ñ¡·½Ê½ 1£©
-// °üº¬Ò»ÇĞÊµÌå·½¿é£¨³ıÁËºìÊ¯µÆ£©
-bool isConductiveObj(RsObj* obj)
-{
-	return obj->nType != RS_NULL && obj->nType != RS_LIGHT;
-}
-
-// ÊÇ·ñÎª¿Éµ¼µç·½¿é£¨É¸Ñ¡·½Ê½ 2£©
-// °üº¬ÆÕÍ¨·½¿é£¨³ıÁËºìÊ¯µÆ£©£¬²»°üº¬ĞÅºÅÔ´·½¿é
-bool isConductiveObj2(RsObj* obj)
-{
-	return isNormalObj(obj) && obj->nType != RS_LIGHT && !isPowerObj(obj);
-}
-
-// ÅĞ¶ÏÔÚÄ³¸ö·½ÏòÉÏÊÇ·ñÓĞµçÄÜÁ÷Èë
-// x, y							µ±Ç°·½¿é×ø±ê
-// kx, ky						ËÑË÷·½Ïò£¨Ö»ÄÜÆäÖĞÒ»¸öÎª 0£¬Ò»¸öÎªÕı¸º 1£©
-// pPowerList, p_nPowerCount	Èç¹ûÓĞµç£¬´«»ØµÄ¹©µç±í
-// p_bPower						¸øµçµÄ·½¿éÊÇ·ñÎªµçÔ´
-//
-// Èô p_bPower ·µ»ØÎª true£¬ÔòĞèÒªÔÚÍâ²¿ÊÍ·Å pPowerList
-bool isPowerTransfer(RsMap* pMap, int x, int y, int kx, int ky, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
-{
-	bool r = false;					// ±ê¼ÇÊÇ·ñ¼ìË÷µ½µçÄÜ
-	int nx = x + kx, ny = y + ky;	// ²éÕÒ×ø±ê
-	if (!(ny >= 0 && ny < pMap->h && nx >= 0 && nx < pMap->w))
-	{
-		return false;
-	}
-
-	RsObj obj = pMap->map[ny][nx];	// µ±Ç°·½¿é
-
-	// ¸øµç·½¿éĞëÊÇ 1 Ààµ¼Ìå£¬ÇÒĞèÒªÓĞ¹©µçÔ´»òÕß±¾ÉíÓĞµç
-	if (isConductiveObj(&obj) && (obj.nPowerCount || obj.bPower))
-	{
-		switch (obj.nType)
-		{
-			// ¶ÔÓÚÖĞ¼ÌÆ÷£¬ĞèÒª½øĞĞ·½ÏòÅĞ¶Ï
-		case RS_RELAY:
-			if (ky > 0 && obj.nTowards == RS_TO_UP)				r = true;
-			else if (ky < 0 && obj.nTowards == RS_TO_DOWN)		r = true;
-			else if (kx > 0 && obj.nTowards == RS_TO_LEFT)		r = true;
-			else if (kx < 0 && obj.nTowards == RS_TO_RIGHT)		r = true;
-			break;
-
-			// CROSS ĞèÒª¼ÌĞøÉîÈë²éÕÒ
-		case RS_CROSS:
-			if (kx) return obj.bHorizonPower;
-			if (ky) return obj.bUprightPower;
-			//return isPowerTransfer(pMap, nx, ny, kx, ky, pPowerList, p_nPowerCount, p_bPower);
-			break;
-
-			// ÆäÓà·½¿é¿ÉÒÔÖ±½Ó±ê¼Ç
-		default:	r = true;	break;
-		}
-	}
-
-	// ÓĞµç
-	if (r)
-	{
-		// µçÔ´¹©µç£¬Ôò¹©µç±íÖĞÖ»·µ»Ø´ËµçÔ´
-		if (obj.bPower)
-		{
-			Power* p = new Power({ nx, ny });
-			*pPowerList = p;
-			*p_nPowerCount = 1;
-			*p_bPower = true;
-		}
-		// µ¼Ìå¹©µç£¬Ôò·µ»ØÆäÕû¸ö¹©µç±í
-		else
-		{
-			*pPowerList = obj.pPowerList;
-			*p_nPowerCount = obj.nPowerCount;
-			*p_bPower = false;
-		}
-
-		// ½»²æÏßĞèÒª±ê¼ÇµçÔ´·½Ïò
-		if (pMap->map[y][x].nType == RS_CROSS)
-		{
-			bool horizon = false;
-			bool upright = false;
-			if (kx)
-			{
-				horizon = true;
-				pMap->map[y][x].bHorizonPower = true;
-			}
-			if (ky)
-			{
-				upright = true;
-				pMap->map[y][x].bUprightPower = true;
-			}
-			for (int i = 0; i < *p_nPowerCount; i++)
-			{
-				((*pPowerList)[i]).isPowerOfCross = true;
-				((*pPowerList)[i]).horizon = horizon;
-				((*pPowerList)[i]).upright = upright;
-			}
-		}
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-// ÉÏÃæÊÇ·ñÀ´µç
-bool isUpPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
-{
-	return isPowerTransfer(pMap, x, y, 0, -1, pPowerList, p_nPowerCount, p_bPower);
-}
-
-// ÏÂÃæÊÇ·ñÀ´µç
-bool isDownPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
-{
-	return isPowerTransfer(pMap, x, y, 0, 1, pPowerList, p_nPowerCount, p_bPower);
-}
-
-// ×ó±ßÊÇ·ñÀ´µç
-bool isLeftPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
-{
-	return isPowerTransfer(pMap, x, y, -1, 0, pPowerList, p_nPowerCount, p_bPower);
-}
-
-// ÓÒ±ßÊÇ·ñÀ´µç
-bool isRightPower(RsMap* pMap, int x, int y, Power** pPowerList, int* p_nPowerCount, bool* p_bPower)
-{
-	return isPowerTransfer(pMap, x, y, 1, 0, pPowerList, p_nPowerCount, p_bPower);
-}
-
-// ÔÚ½ÓÊÜ¸½½üµçÁ÷Ê±¼ÓÈëĞÂµÄ¹©µçÔ´
-bool JoinPowerList_AcceptPower(RsObj* pObj, Power* pPowerList, int nCount, bool bPower)
-{
-	int r = AddToPowerList(pObj, pPowerList, nCount);
-	if (bPower)
-	{
-		delete pPowerList;
-	}
-
-	return r;
-}
-
-// ½ÓÊÜ¸½½üµçÁ÷£¬·µ»ØÊÇ·ñ½ÓÊÜµ½µçÁ÷
-bool AcceptPowerNearby(RsMap* map, int x, int y)
-{
-	Power* pPowerList = NULL;
-	int nPowerCount = 0;
-	bool bPower = false;
-
-	RsObj* pObj = &map->map[y][x];	// µ±Ç°·½¿é
-
-	// ½ÓÊÕËÄ¸ö·½ÏòµÄĞÅºÅ
-	bool (*funcs[])(RsMap*, int, int, Power**, int*, bool*) = { isLeftPower, isRightPower, isUpPower, isDownPower };
-	bool result = false;
-	for (int i = 0; i < 4; i++)
-	{
-		if (funcs[i](map, x, y, &pPowerList, &nPowerCount, &bPower))
-		{
-			// ±ê¼ÇÊÇ·ñ³É¹¦¹©ÄÜ
-			bool bSupply = true;
-			switch (pObj->nType)
-			{
-				// ºìÊ¯»ğ°ÑÖ»½ÓÊÜÖĞ¼ÌÆ÷¹©ÄÜ
-			case RS_TORCHE:
-				switch (i)
-				{
-				case 0: if (map->map[y][x - 1].nType != RS_RELAY) bSupply = false; break;
-				case 1: if (map->map[y][x + 1].nType != RS_RELAY) bSupply = false; break;
-				case 2: if (map->map[y - 1][x].nType != RS_RELAY) bSupply = false; break;
-				case 3: if (map->map[y + 1][x].nType != RS_RELAY) bSupply = false; break;
-				}
-				break;
-				// ÖĞ¼ÌÆ÷Ö»½ÓÊÜÍ¬Ïò¹©ÄÜ
-			case RS_RELAY:
-				switch (i)
-				{
-				case 0: if (pObj->nTowards != RS_TO_RIGHT)	bSupply = false; break;
-				case 1: if (pObj->nTowards != RS_TO_LEFT)	bSupply = false; break;
-				case 2: if (pObj->nTowards != RS_TO_DOWN)	bSupply = false; break;
-				case 3: if (pObj->nTowards != RS_TO_UP)		bSupply = false; break;
-				}
-				break;
-			}
-			// ¹©ÄÜ³É¹¦²Å¼ÓÈë¹©ÄÜ±í
-			if (bSupply)
-			{
-				if (JoinPowerList_AcceptPower(pObj, pPowerList, nPowerCount, bPower))
-				{
-					result = true;
-				}
-			}
-			// Èô¹©ÄÜ²»³É¹¦£¬Ò²Òª»ØÊÕÄÚ´æ
-			else if (bPower)
-			{
-				delete pPowerList;
-			}
-		}
-	}
-	return result;
-}
-
-void ConductPower(RsMap* pMap, int x, int y, Power pPower);
-
-// Ö´ĞĞ¹ØÓÚÆÕÍ¨·½¿éµÄ´¦Àí£¨º¬ºìÊ¯»ğ°Ñ£©
-// pos ·¢ÆğµçÔ´Î»ÖÃ
-void RunObj(RsMap* pMap, int x, int y, Power pPower)
-{
-	RsObj* pObj = &pMap->map[y][x];
-
-	//// µçÂ·Ã»ÓĞ±ÕºÏ£¬Ôò¼ÌĞøÑÓÉì
-	//if (!SearchPowerInList(pObj->pPowerList, pObj->nPowerCount, pos))
-	//{
-
-	// ½ÓÊÜµ½¸½½üµçÁ÷
-	if (AcceptPowerNearby(pMap, x, y))
-	{
-		// Èç¹ûÊÇ¿ÉÒÔ¼ÌĞø´«µ¼µÄÎïÌå£¬Ôò¼ÌĞø
-		if (isConductiveObj2(pObj))
-		{
-			// ¼ÌĞøµ¼µç
-			ConductPower(pMap, x, y, pPower);
-		}
-	}
-
-	//}
-}
-
-// ÏòËÄÖÜµ¼µç
-// pos Ô­µçÔ´Î»ÖÃ
-void ConductPower(RsMap* pMap, int x, int y, Power pPower)
-{
-	// Ö»¶ÔÆÕÍ¨·½¿éºÍºìÊ¯»ğ°Ñ½øĞĞ³õ²½µ¼µç
-	if (x - 1 >= 0 && isNormalObj(&pMap->map[y][x - 1]))
-	{
-		RunObj(pMap, x - 1, y, pPower);
-	}
-	if (x + 1 < pMap->w && isNormalObj(&pMap->map[y][x + 1]))
-	{
-		RunObj(pMap, x + 1, y, pPower);
-	}
-	if (y - 1 >= 0 && isNormalObj(&pMap->map[y - 1][x]))
-	{
-		RunObj(pMap, x, y - 1, pPower);
-	}
-	if (y + 1 < pMap->h && isNormalObj(&pMap->map[y + 1][x]))
-	{
-		RunObj(pMap, x, y + 1, pPower);
-	}
-}
-
-// È·ÈÏµçÔ´×´Ì¬
-// pPower		µçÔ´Î»ÖÃ
-// flagFirst	ÊÇ·ñÎªµÚÒ»´Îµ÷ÓÃ
-void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
-{
-	static RsObj pVisited;	// ÀûÓÃÎïÌåµÄ power ±í´æ´¢ÒÑ±éÀúµã
-	static int nCount = 0;
-
-	RsObj* pObj = &pMap->map[pPower.y][pPower.x];
-
-	// Ö»ÓĞ»ğ°ÑĞèÒªÈ·ÈÏ×´Ì¬
-	if (pObj->nType == RS_TORCHE)
-	{
-		// ¼ÇÂ¼×ã¼£
-		AddToPowerList(&pVisited, &pPower, 1);
-		nCount++;
-
-		// µİ¹éÈ·ÈÏËùÓĞµçÔ´µÄ×´Ì¬
-		for (int i = 0; i < pObj->nPowerCount; i++)
-		{
-			// ÖØ¸´Ïî²»ÔÙ¼ìÑé
-			//if (!SearchPowerInList(pVisited.pPowerList, nCount, pObj->pPowerList[i]))
-			bool repeat = false;
-			for (int j = 0; j < nCount; j++)
-			{
-				if (pVisited.pPowerList[j].x == pObj->pPowerList[i].x
-					&& pVisited.pPowerList[j].y == pObj->pPowerList[i].y)
-				{
-					repeat = true;
-					break;
-				}
-			}
-			if (repeat)
-			{
-				continue;
-			}
-
-			CheckPower(pMap, pObj->pPowerList[i]);
-		}
-
-		// Èô´æÔÚÍ¨µçµçÔ´£¬ÔòÏ¨Ãğ
-		for (int i = 0; i < pObj->nPowerCount; i++)
-		{
-			Power p = pObj->pPowerList[i];
-			if (pMap->map[p.y][p.x].bPower)
-			{
-				pObj->bPower = false;
-			}
-		}
-	}
-
-	// Î»ÓÚµİ¹éÍ·£¬»ØÊÕÄÚ´æ
-	if (flagFirst && pVisited.pPowerList != NULL)
-	{
-		delete[] pVisited.pPowerList;
-		pVisited.pPowerList = NULL;
-		nCount = 0;
-	}
-}
-
-// ÔËĞĞºìÊ¯µØÍ¼
-void RunRsMap(RsMap* pMap)
-{
-	// ÖØÖÃ³õÊ¼¹©µç×´Ì¬
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			// ±£ÁôµçÔ´¿ª¹Ø×´Ì¬£¬ºìÊ¯»ğ°ÑÉèÎªÓĞµç£¬ÆäÓàÎŞµç
-			if (isPowerObj(&pMap->map[j][i]))
-			{
-				if (pMap->map[j][i].nType == RS_TORCHE)
-				{
-					pMap->map[j][i].bPower = true;
-				}
-			}
-			else
-			{
-				pMap->map[j][i].bPower = false;
-			}
-
-			// Çå¿Õ½»²æÏßµçÔ´×´Ì¬
-			pMap->map[j][i].bUprightPower = false;
-			pMap->map[j][i].bHorizonPower = false;
-
-			// Çå¿ÕËùÓĞ¹©µç±í
-			if (pMap->map[j][i].pPowerList != NULL)
-			{
-				delete pMap->map[j][i].pPowerList;
-				pMap->map[j][i].pPowerList = NULL;
-				pMap->map[j][i].nPowerCount = 0;
-			}
-		}
-	}
-
-	// µçÔ´¿ªµç
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			if (isPowerObj(&pMap->map[j][i]) && pMap->map[j][i].bPower)
-			{
-				// µ¼µç
-				ConductPower(pMap, i, j, Power({ i, j }));
-			}
-		}
-	}
-
-	// Éó²éµçÔ´×´Ì¬£¨ºìÊ¯»ğ°Ñ¿ª¹ØÉèÖÃ£©
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			if (isPowerObj(&pMap->map[j][i]))
-			{
-				CheckPower(pMap, Power({ i, j }), true);
-			}
-		}
-	}
-
-	// ±éÀúµØÍ¼£¬ÉèÖÃµ¼ÌåÍ¨µç×´Ì¬
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			// Ö»¶ÔÆÕÍ¨·½¿é½øĞĞÉèÖÃ
-			if (!isPowerObj(&pMap->map[j][i]) && pMap->map[j][i].nType != RS_NULL)
-			{
-				// ±éÀú¹©ÄÜ±í£¬¸øµç
-				for (int k = 0; k < pMap->map[j][i].nPowerCount; k++)
-				{
-					Power p = pMap->map[j][i].pPowerList[k];
-					if (pMap->map[p.y][p.x].bPower)
-					{
-						pMap->map[j][i].bPower = true;
-					}
-				}
-			}
-		}
-	}
-
-	// ËùÓĞµ¼ÌåµÄ³äÄÜ×´Ì¬ÉèÖÃÍê±Ïºó£¬ÔÙ´Î¶Ô½»²æÏßµ¥¶ÀÉèÖÃ³äÄÜ×´Ì¬
-	//for (int i = 0; i < pMap->w; i++)
-	//{
-	//	for (int j = 0; j < pMap->h; j++)
-	//	{
-	//		if (pMap->map[j][i].nType == RS_CROSS && pMap->map[j][i].bPower)
-	//		{
-	//			// ÅĞ¶ÏÒ»·½¿éÊÇ·ñÎªÓĞĞ§µçÔ´
-	//			auto isActivePower = [pMap](int x, int y) {
-	//				if (pMap->map[y][x].bPower)
-	//					if (isConductiveObj(&pMap->map[y][x]) && pMap->map[y][x].nType != RS_CROSS)
-	//						return true;
-	//				return false;
-	//			};
-
-	//			// ÓÉÓÚ½»²æÏßÔÚË®Æ½ºÍ´¹Ö±·½Ïò»¥²»¸ÉÈÅ£¬ËùÒÔÈôÄ³¸ö·½Ïò³äÄÜ£¬ÑØ´Ë·½ÏòËÑË÷Ò»¶¨ÄÜÓöµ½³äÄÜ·½¿é
-
-	//			// ´¹Ö±·½ÏòËÑË÷
-	//			// ÈôÒÑ±ê¼Ç´¹Ö±·½Ïò³äÄÜ£¬ÔòÌø³ö
-	//			for (int k = -1; !pMap->map[j][i].bUprightPower && k <= 1; k += 2)
-	//				for (int y = j + k;
-	//					((y >= 0 && y < pMap->h)					// ËÑË÷Ô½½ç
-	//						&& isConductiveObj(&pMap->map[y][i])	// ±ØĞëÑØµ¼µç·½¿éËÑË÷
-	//						&& pMap->map[y][i].bPower				// ËÑË÷Â·¾¶±ØĞëÍêÈ«³äÄÜ
-	//						&& !pMap->map[j][i].bUprightPower);		// ÒÑ±ê¼Ç³äÄÜºóÌø³ö
-	//					y += k)
-	//					if (isActivePower(i, y))
-	//						pMap->map[j][i].bUprightPower = true;
-
-	//			// Ë®Æ½·½ÏòËÑË÷
-	//			// ÈôÒÑ±ê¼ÇË®Æ½·½Ïò³äÄÜ£¬ÔòÌø³ö
-	//			for (int k = -1; !pMap->map[j][i].bHorizonPower && k <= 1; k += 2)
-	//				for (int x = i + k;
-	//					((x >= 0 && x < pMap->w)					// ËÑË÷Ô½½ç
-	//						&& isConductiveObj(&pMap->map[j][x])	// ±ØĞëÑØµ¼µç·½¿éËÑË÷
-	//						&& pMap->map[j][x].bPower				// ËÑË÷Â·¾¶±ØĞëÍêÈ«³äÄÜ
-	//						&& !pMap->map[j][i].bHorizonPower);		// ÒÑ±ê¼Ç³äÄÜºóÌø³ö
-	//					x += k)
-	//					if (isActivePower(x, j))
-	//						pMap->map[j][i].bHorizonPower = true;
-	//		}
-	//	}
-	//}
-
-}
-
-// ·ÅÖÃÎïÆ·µ½µØÍ¼
-void PutObjectToRsMap(RsMap* map, int x, int y, int object_id, int direction = RS_TO_UP)
-{
-	RsObj obj = GetNullObj();
-	obj.nType = object_id;
-
-	switch (object_id)
-	{
-	case RS_TORCHE:
-		obj.bPower = true;
-		break;
-	case RS_RELAY:
-		obj.nTowards = direction;
-		break;
-	}
-
-	map->map[y][x] = obj;
-}
-
-// Ñ¡ÔñÎÄ¼ş
-// isSave±êÖ¾×ÅÊÇ·ñÎª±£´æÄ£Ê½
+// é€‰æ‹©æ–‡ä»¶
+// isSaveæ ‡å¿—ç€æ˜¯å¦ä¸ºä¿å­˜æ¨¡å¼
 const WCHAR* SelectFile(bool isSave = false)
 {
 	OPENFILENAME ofn;
@@ -800,13 +85,13 @@ const WCHAR* SelectFile(bool isSave = false)
 	return _T("");
 }
 
-// ÅĞ¶Ï×Ö·ûÊÇ·ñÎªÊı×Ö
+// åˆ¤æ–­å­—ç¬¦æ˜¯å¦ä¸ºæ•°å­—
 bool isNum(char ch)
 {
 	return (ch >= '0' && ch <= '9') || ch == '-';
 }
 
-// ÅĞ¶ÁÒ»×Ö·û´®ÊÇ·ñÍêÈ«ÎªÊı×Ö
+// åˆ¤è¯»ä¸€å­—ç¬¦ä¸²æ˜¯å¦å®Œå…¨ä¸ºæ•°å­—
 bool isAllNum(const char* str)
 {
 	for (int i = 0; i < (int)strlen(str); i++)
@@ -815,7 +100,7 @@ bool isAllNum(const char* str)
 	return true;
 }
 
-// ÔÚµ±Ç°½ø¶ÈÍùÏÂ¶ÁÈ¡Ò»´®Êı×Ö
+// åœ¨å½“å‰è¿›åº¦å¾€ä¸‹è¯»å–ä¸€ä¸²æ•°å­—
 bool ReadNum(const char* str, int& index, int& num)
 {
 	char* chNum = new char[strlen(str) + 1];
@@ -846,51 +131,9 @@ bool ReadNum(const char* str, int& index, int& num)
 	return false;
 }
 
-// É¾³ıµØÍ¼
-void DeleteRsMap(RsMap* map)
-{
-	if (map->map != NULL)
-	{
-		for (int i = 0; i < map->h; i++)
-		{
-			delete[] map->map[i];
-		}
 
-		delete[] map->map;
-		map->map = NULL;
-	}
-}
 
-// ÖØÉèµØÍ¼´óĞ¡
-void ResizeRsMap(RsMap* map, int w, int h)
-{
-	RsMap newmap = InitRsMap(w, h);
-
-	int old_w = map->w;
-	int old_h = map->h;
-
-	if (old_w > w)
-	{
-		old_w = w;
-	}
-	if (old_h > h)
-	{
-		old_h = h;
-	}
-
-	for (int i = 0; i < old_w; i++)
-	{
-		for (int j = 0; j < old_h; j++)
-		{
-			newmap.map[j][i] = map->map[j][i];
-		}
-	}
-
-	DeleteRsMap(map);
-	*map = newmap;
-}
-
-// ±£´æÏîÄ¿
+// ä¿å­˜é¡¹ç›®
 bool SaveProject(RsMap map, const WCHAR* strFileName)
 {
 	if (!lstrlen(strFileName))
@@ -928,7 +171,7 @@ bool SaveProject(RsMap map, const WCHAR* strFileName)
 			char chPower = '0';
 			_itoa_s(map.map[i][j].nType, chObj, 10);
 			_itoa_s(map.map[i][j].nTowards, chTowards, 10);
-			if (map.map[i][j].bPower && map.map[i][j].nType != RS_BUTTON)
+			if (map.map[i][j].bPowered && map.map[i][j].nType != RS_BUTTON)
 				chPower = '1';
 
 			fputs(chObj, fp);
@@ -950,7 +193,7 @@ bool SaveProject(RsMap map, const WCHAR* strFileName)
 	return true;
 }
 
-// ´ò¿ªÏîÄ¿
+// æ‰“å¼€é¡¹ç›®
 RsMap OpenProject(const WCHAR* strFileName)
 {
 	if (!lstrlen(strFileName))
@@ -971,13 +214,13 @@ RsMap OpenProject(const WCHAR* strFileName)
 
 	fclose(fp);
 
-	// ·ÖÎöÎÄ¼ş
+	// åˆ†ææ–‡ä»¶
 
-	// ÎÄ¼ş¸ñÊ½£º
-	// µØÍ¼¿í µØÍ¼¸ß
-	// ÎïÌåid,³¯Ïò,ÄÜÁ¿ ÎïÌåid,³¯Ïò,ÄÜÁ¿ ......
+	// æ–‡ä»¶æ ¼å¼ï¼š
+	// åœ°å›¾å®½ åœ°å›¾é«˜
+	// ç‰©ä½“id,æœå‘,èƒ½é‡ ç‰©ä½“id,æœå‘,èƒ½é‡ ......
 
-	// ¶ÁÈ¡µØÍ¼¿í¸ß
+	// è¯»å–åœ°å›¾å®½é«˜
 	int nMap_w, nMap_h;
 	int index = 0;
 
@@ -998,25 +241,25 @@ RsMap OpenProject(const WCHAR* strFileName)
 			int nTowards = RS_TO_UP;
 			int nPower = false;
 
-			// ¶ÁÎïÆ·id
+			// è¯»ç‰©å“id
 			if (!ReadNum(chProject, index, nType))
 				return RsMap{};
 			index++;
 
-			// ¶Á³¯Ïò
+			// è¯»æœå‘
 			if (!ReadNum(chProject, index, nTowards))
 				return RsMap{};
 			index++;
 
-			// ¶ÁÄÜÁ¿
+			// è¯»èƒ½é‡
 			if (!ReadNum(chProject, index, nPower))
 				return RsMap{};
 			index++;
 
-			RsObj rsobj = GetNullObj();
+			RsObj rsobj;
 			rsobj.nType = nType;
 			rsobj.nTowards = nTowards;
-			rsobj.bPower = (bool)nPower;
+			rsobj.bPowered = (bool)nPower;
 
 			map.map[i][j] = rsobj;
 		}
@@ -1025,10 +268,10 @@ RsMap OpenProject(const WCHAR* strFileName)
 	return map;
 }
 
-// µ¼ÈëÏîÄ¿
-// out Ö÷ÏîÄ¿
-// in ±»µ¼ÈëÏîÄ¿
-// l, l ±»µ¼ÈëÏîÄ¿Î»ÓÚÖ÷ÏîÄ¿µÄ×óÉÏ½Ç×ø±ê
+// å¯¼å…¥é¡¹ç›®
+// out ä¸»é¡¹ç›®
+// in è¢«å¯¼å…¥é¡¹ç›®
+// l, l è¢«å¯¼å…¥é¡¹ç›®ä½äºä¸»é¡¹ç›®çš„å·¦ä¸Šè§’åæ ‡
 void ImportProject(RsMap* out, RsMap in, int x, int y)
 {
 	for (int jo = y, ji = 0; jo < out->h && ji < in.h; jo++, ji++)
@@ -1043,9 +286,9 @@ void ImportProject(RsMap* out, RsMap in, int x, int y)
 	}
 }
 
-// Í¼Æ¬À­Éì
-// width, height À­ÉìºóµÄÍ¼Æ¬´óĞ¡
-// img Ô­Í¼Ïñ
+// å›¾ç‰‡æ‹‰ä¼¸
+// width, height æ‹‰ä¼¸åçš„å›¾ç‰‡å¤§å°
+// img åŸå›¾åƒ
 void ImageToSize(int width, int height, IMAGE* img)
 {
 	IMAGE* pOldImage = GetWorkingImage();
@@ -1067,41 +310,41 @@ void ImageToSize(int width, int height, IMAGE* img)
 }
 
 /*
- *    ²Î¿¼×Ôhttp://tieba.baidu.com/pos/5218523817
- *    º¯ÊıÃû:zoomImage(IMAGE* pImg,int width£¬int height)
- *    ²ÎÊıËµÃ÷:pImgÊÇÔ­Í¼Ö¸Õë£¬width1ºÍheight1ÊÇÄ¿±êÍ¼Æ¬µÄ³ß´ç¡£
- *    º¯Êı¹¦ÄÜ:½«Í¼Æ¬½øĞĞËõ·Å£¬·µ»ØÄ¿±êÍ¼Æ¬ ¿ÉÒÔ×Ô¶¨Òå³¤Óë¿í£¬Ò²¿ÉÒÔÖ»¸ø³¤×Ô¶¯¼ÆËã¿í
- *    ·µ»ØÄ¿±êÍ¼Æ¬
+ *    å‚è€ƒè‡ªhttp://tieba.baidu.com/pos/5218523817
+ *    å‡½æ•°å:zoomImage(IMAGE* pImg,int widthï¼Œint height)
+ *    å‚æ•°è¯´æ˜:pImgæ˜¯åŸå›¾æŒ‡é’ˆï¼Œwidth1å’Œheight1æ˜¯ç›®æ ‡å›¾ç‰‡çš„å°ºå¯¸ã€‚
+ *    å‡½æ•°åŠŸèƒ½:å°†å›¾ç‰‡è¿›è¡Œç¼©æ”¾ï¼Œè¿”å›ç›®æ ‡å›¾ç‰‡ å¯ä»¥è‡ªå®šä¹‰é•¿ä¸å®½ï¼Œä¹Ÿå¯ä»¥åªç»™é•¿è‡ªåŠ¨è®¡ç®—å®½
+ *    è¿”å›ç›®æ ‡å›¾ç‰‡
 */
 IMAGE zoomImage(IMAGE* pImg, int newWidth, int newHeight = 0)
 {
-	// ·ÀÖ¹Ô½½ç
+	// é˜²æ­¢è¶Šç•Œ
 	if (newWidth < 0 || newHeight < 0) {
 		newWidth = pImg->getwidth();
 		newHeight = pImg->getheight();
 	}
 
-	// µ±²ÎÊıÖ»ÓĞÒ»¸öÊ±°´±ÈÀı×Ô¶¯Ëõ·Å
+	// å½“å‚æ•°åªæœ‰ä¸€ä¸ªæ—¶æŒ‰æ¯”ä¾‹è‡ªåŠ¨ç¼©æ”¾
 	if (newHeight == 0) {
-		// ´Ë´¦ĞèÒª×¢ÒâÏÈ*ÔÙ/¡£²»È»µ±Ä¿±êÍ¼Æ¬Ğ¡ÓÚÔ­Í¼Ê±»á³ö´í
+		// æ­¤å¤„éœ€è¦æ³¨æ„å…ˆ*å†/ã€‚ä¸ç„¶å½“ç›®æ ‡å›¾ç‰‡å°äºåŸå›¾æ—¶ä¼šå‡ºé”™
 		newHeight = newWidth * pImg->getheight() / pImg->getwidth();
 	}
 
-	// »ñÈ¡ĞèÒª½øĞĞËõ·ÅµÄÍ¼Æ¬
+	// è·å–éœ€è¦è¿›è¡Œç¼©æ”¾çš„å›¾ç‰‡
 	IMAGE newImg(newWidth, newHeight);
 
-	// ·Ö±ğ¶ÔÔ­Í¼ÏñºÍÄ¿±êÍ¼Ïñ»ñÈ¡Ö¸Õë
+	// åˆ†åˆ«å¯¹åŸå›¾åƒå’Œç›®æ ‡å›¾åƒè·å–æŒ‡é’ˆ
 	DWORD* oldDr = GetImageBuffer(pImg);
 	DWORD* newDr = GetImageBuffer(&newImg);
 
-	// ¸³Öµ Ê¹ÓÃË«ÏßĞÔ²åÖµËã·¨
+	// èµ‹å€¼ ä½¿ç”¨åŒçº¿æ€§æ’å€¼ç®—æ³•
 	for (int i = 0; i < newHeight - 1; i++) {
 		for (int j = 0; j < newWidth - 1; j++) {
 			int t = i * newWidth + j;
 			int xt = j * pImg->getwidth() / newWidth;
 			int yt = i * pImg->getheight() / newHeight;
 			newDr[i * newWidth + j] = oldDr[xt + yt * pImg->getwidth()];
-			// ÊµÏÖÖğĞĞ¼ÓÔØÍ¼Æ¬
+			// å®ç°é€è¡ŒåŠ è½½å›¾ç‰‡
 			byte r = GetRValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte g = GetGValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte b = GetBValue(oldDr[xt + yt * pImg->getwidth()]);
@@ -1112,326 +355,32 @@ IMAGE zoomImage(IMAGE* pImg, int newWidth, int newHeight = 0)
 	return newImg;
 }
 
-// µÃµ½µØÍ¼»­Ãæ
-// map						µØÍ¼
-// redraw					±êÊ¶ÊÇ·ñÖØĞÂ»æÖÆµØÍ¼
-// resize					±êÊ¶µØÍ¼³ß´çÊÇ·ñ¸üĞÂ
-// bShowXY					Ö¸¶¨ÊÇ·ñÏÔÊ¾×ø±ê
-// bShowRuler				Ö¸¶¨ÏÔÊ¾×ø±êÊ±µÄ·½Ê½£¬Îª true ±íÊ¾ÏÔÊ¾±ê³ß£¬Îª false ±íÊ¾Ö±½ÓÔÚ·½¿éÉÏÏÔÊ¾×ø±ê
-void GetRsMapImage(
-	IMAGE* pImg,			// Êä³ö»æÖÆµÄµØÍ¼
-	IMAGE* pImgRulerX,		// Êä³ö X Öá±ê³ß£¨Èç¹ûÑ¡Ôñ»æÖÆ±ê³ß£©
-	IMAGE* pImgRulerY,		// Êä³ö Y Öá±ê³ß£¨Èç¹ûÑ¡Ôñ»æÖÆ±ê³ß£©
-	RsMap* map,				// µØÍ¼
-	bool redraw,			// ÊÇ·ñÖØĞÂ»æÖÆµØÍ¼
-	bool resize,			// µØÍ¼³ß´çÊÇ·ñ¸üĞÂ
-	bool bShowXY,			// ÊÇ·ñÏÔÊ¾×ø±ê
-	bool bShowRuler			// ÊÇ·ñÒÔ±ê³ßĞÎÊ½ÏÔÊ¾×ø±ê
-)
+// æ”¾ç½®ç‰©å“åˆ°åœ°å›¾
+void PutObjectToRsMap(RsMap* map, int x, int y, int object_id, int direction = RS_TO_UP)
 {
-	// Í¼ÏñÊôĞÔ
+	RsObj obj;
+	obj.nType = object_id;
 
-	// µØÍ¼ÏñËØ¿í¸ß
-	int nMapCanvasWidth = map->w * nObjSize;
-	int nMapCanvasHeight = map->h * nObjSize;
-
-	// ´æ´¢ÉÏ´ÎµÄÍ¼Ïñ
-	static IMAGE imgMap;
-	static IMAGE imgXRuler, imgYRuler;
-
-	IMAGE* pOld = GetWorkingImage();
-
-	if (redraw)
+	switch (object_id)
 	{
-		SetWorkingImage(&imgMap);
-
-		imgMap.Resize(nMapCanvasWidth, nMapCanvasHeight);
-
-		cleardevice();
-		SetWorkingImage(pOld);
-	}
-	if (resize)
-	{
-		imgXRuler.Resize(nMapCanvasWidth, nRulerHeight);
-		imgYRuler.Resize(nRulerWidth, nMapCanvasHeight);
+	case RS_TORCHE:
+		obj.bPowered = true;
+		break;
+	case RS_RELAY:
+		obj.nTowards = direction;
+		break;
 	}
 
-	//// X ×ø±ê³¬³öÆÁÄ»ÅĞ¶¨
-	//auto isOverscreen_X = [offset_x, zoom, nDrawArea_w](int x, int nObjSize) {
-	//	return ((x + 1) * nObjSize + offset_x) * zoom < 0
-	//		|| (x * nObjSize + offset_x) * zoom > nDrawArea_w;
-	//};
-
-	//// Y ×ø±ê³¬³öÆÁÄ»ÅĞ¶¨
-	//auto isOverscreen_Y = [offset_y, zoom, nDrawArea_h](int y, int nObjSize) {
-	//	return ((y + 1) * nObjSize + offset_y) * zoom < 0
-	//		|| (y * nObjSize + offset_y) * zoom > nDrawArea_h;
-	//};
-
-	// »æÖÆ
-	{
-		// ÖØ»æµØÍ¼
-		if (redraw)
-		{
-			SetWorkingImage(&imgMap);
-			settextcolor(WHITE);
-			settextstyle(10, 0, L"ºÚÌå");
-			setbkmode(TRANSPARENT);
-
-			// ²»ÏÔÊ¾×ø±êÊ±£¬±³¾°É«Î¢µ÷£¬±ãÓÚ±æÈÏ
-			if (!bShowXY || !bShowRuler)
-			{
-				setbkcolor(RGB(20, 20, 20));
-				cleardevice();
-			}
-
-			// »æÖÆµØÍ¼·½¿é
-			for (int x = 0; x < map->w; x++)
-			{
-				//if (isOverscreen_X(x, nObjSize))		continue;
-
-				for (int y = 0; y < map->h; y++)
-				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
-
-					// ·½¿é£¬ÖÜÎ§·½¿é
-					RsObj me = map->map[y][x];
-					RsObj up, down, left, right;
-					if (y - 1 >= 0)			up = map->map[y - 1][x];
-					if (y + 1 < map->h)		down = map->map[y + 1][x];
-					if (x - 1 >= 0)			left = map->map[y][x - 1];
-					if (x + 1 < map->w)		right = map->map[y][x + 1];
-
-					// µ±Ç°·½¿é»æÖÆÎ»ÖÃ
-					int draw_x = x * nObjSize;
-					int draw_y = y * nObjSize;
-
-					switch (me.nType)
-					{
-					case RS_NULL:	break;
-					case RS_POWDER:
-					{
-						// ¸ÃºìÊ¯·ÛÊÇ·ñÁ¬½ÓÉÏÖÜÎ§ÎïÌå
-						bool bConnect = false;
-						//SetWorkingImage(&powder);
-
-						if (me.bPower)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						//fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2 - 1);
-						setlinestyle(PS_SOLID, nPowderWidth);
-
-						// ÊµÊ±»æÖÆºìÊ¯·Û
-						if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
-						{
-							if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y);
-								bConnect = true;
-							}
-						}
-						if (y + 1 < map->h && down.nType != RS_NULL)	// line to down
-						{
-							if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize);
-								bConnect = true;
-							}
-						}
-						if (x - 1 >= 0 && left.nType != RS_NULL)		// line to left
-						{
-							if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x, draw_y + nHalfObjSize);
-								bConnect = true;
-							}
-						}
-						if (x + 1 < map->w && right.nType != RS_NULL)	// line to right
-						{
-							if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize, draw_y + nHalfObjSize);
-								bConnect = true;
-							}
-						}
-
-						if (!bConnect)
-						{
-							fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth);
-						}
-
-						//putimage(l * nObjSize, l * nObjSize, &powder);
-					}
-					break;
-
-					case RS_ROD:		putimage(draw_x, draw_y, &imgRod[me.bPower]);		break;
-					case RS_BUTTON:		putimage(draw_x, draw_y, &imgButton[me.bPower]);	break;
-					case RS_TORCHE:		putimage(draw_x, draw_y, &imgTorche[me.bPower]);	break;
-					case RS_LIGHT:		putimage(draw_x, draw_y, &imgLight[me.bPower]);		break;
-
-					case RS_RELAY:
-					{
-						IMAGE* p = NULL;
-						switch (me.nTowards)
-						{
-						case RS_TO_UP:		p = &imgRelay[me.bPower];				break;
-						case RS_TO_LEFT:	p = &imgRelayRotated[me.bPower][0];		break;
-						case RS_TO_DOWN:	p = &imgRelayRotated[me.bPower][1];		break;
-						case RS_TO_RIGHT:	p = &imgRelayRotated[me.bPower][2];		break;
-						}
-						putimage(draw_x, draw_y, p);
-					}
-					break;
-
-					case RS_CROSS:
-					{
-						setlinestyle(PS_SOLID, nPowderWidth);
-
-						if (me.bUprightPower)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						line(draw_x + nHalfObjSize, draw_y, draw_x + nHalfObjSize, draw_y + nObjSize);	// ÊúÏòµçÂ·
-
-						if (me.bHorizonPower)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						// ½»²æÏß»æÖÆµãÎ»
-						POINT pCrossHLine[3] = {
-							{ draw_x,draw_y + nHalfObjSize },
-							{ draw_x + nHalfObjSize,draw_y + nHalfObjSize / 2 },
-							{ draw_x + nObjSize,draw_y + nHalfObjSize }
-						};
-
-						// ºáÏòµçÂ·£¨ÍäÇú£©
-						polyline(pCrossHLine, 3);
-					}
-					break;
-
-					}
-
-					// Êä³ö×ø±êÄ£Ê½
-					if (bShowXY && !bShowRuler)
-					{
-						TCHAR strX[12] = { 0 };
-						TCHAR strY[12] = { 0 };
-						wsprintf(strX, L"x:%d", x);
-						wsprintf(strY, L"y:%d", y);
-						outtextxy(x * nObjSize, y * nObjSize, strX);
-						outtextxy(x * nObjSize, y * nObjSize + textheight('0'), strY);
-					}
-				}
-			}
-
-			// Íø¸ñ
-			if (bShowXY && bShowRuler)
-			{
-				// Íø¸ñÏßĞÎ
-				setlinecolor(GRAY);
-				setlinestyle(PS_DASH, 1);
-
-				for (int x = 0; x <= map->w; x++)
-				{
-					//if (isOverscreen_X(x, nObjSize))	continue;
-
-					int l = x * nObjSize;
-					if (x == map->w)	l--;
-					line(l, 0, l, getheight());
-				}
-				for (int y = 0; y <= map->h; y++)
-				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
-
-					int l = y * nObjSize;
-					if (y == map->h)	l--;
-					line(0, l, getwidth(), l);
-				}
-			}
-		}
-
-		// ´óĞ¡¸Ä±ä
-		if (resize)
-		{
-			// ÖØ»æ±ê³ß
-			if (bShowRuler)
-			{
-				// x Öá±ê³ß
-				SetWorkingImage(&imgXRuler);
-				settextstyle(12, 0, L"ºÚÌå");
-				setbkmode(TRANSPARENT);
-				setbkcolor(BLUE);
-				cleardevice();
-				rectangle(0, 0, getwidth() - 1, getheight());
-
-				for (int x = 0; x < map->w; x++)
-				{
-					//if (isOverscreen_X(x, nObjSize))	continue;
-
-					line(x * nObjSize, 0, x * nObjSize, getheight());
-					TCHAR str[6] = { 0 };
-					wsprintf(str, L"%d", x);
-					outtextxy(x * nObjSize + 5, 5, str);
-				}
-
-				// y Öá±ê³ß
-				SetWorkingImage(&imgYRuler);
-				settextstyle(10, 0, L"ºÚÌå");
-				setbkmode(TRANSPARENT);
-				setbkcolor(BLUE);
-				cleardevice();
-				rectangle(0, 0, getwidth(), getheight() - 1);
-
-				for (int y = 0; y < map->h; y++)
-				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
-
-					line(0, y * nObjSize, getwidth(), y * nObjSize);
-					TCHAR str[6] = { 0 };
-					wsprintf(str, L"%d", y);
-					outtextxy(5, y * nObjSize + 5, str);
-				}
-			}
-		}
-	}
-
-	// »æÖÆÍê±Ï
-	SetWorkingImage(pOld);
-
-	*pImg = imgMap;
-	*pImgRulerX = imgXRuler;
-	*pImgRulerY = imgYRuler;
+	map->map[y][x] = obj;
 }
 
-// ´ÓÃüÁîÖĞ·ÖÀë²ÎÊı
-// cmd Ô­ÃüÁî
-// chCmdsArray_out Êä³ö²ÎÊıÁĞ±í
-// nArgsNum_out Êä³ö²ÎÊıÊıÁ¿
+// ä»å‘½ä»¤ä¸­åˆ†ç¦»å‚æ•°
+// cmd åŸå‘½ä»¤
+// chCmdsArray_out è¾“å‡ºå‚æ•°åˆ—è¡¨
+// nArgsNum_out è¾“å‡ºå‚æ•°æ•°é‡
 void GetArguments(const char* cmd, char*** chCmdsArray_out, int* nArgsNum_out)
 {
-	// ²ÎÊıÊıÁ¿
+	// å‚æ•°æ•°é‡
 	int nArgsNum = 1;
 	for (int i = 0; i < (int)strlen(cmd); i++)
 		if (cmd[i] == ' ')
@@ -1445,7 +394,7 @@ void GetArguments(const char* cmd, char*** chCmdsArray_out, int* nArgsNum_out)
 		memset(chCmdsArray[i], 0, nMaxCmdSize);
 	}
 
-	// ·ÖÀëÃ¿¸ö²ÎÊı
+	// åˆ†ç¦»æ¯ä¸ªå‚æ•°
 	for (int nIndex = 0, nMainIndex = 0, nArgNum = 0; nIndex < (int)strlen(cmd); nIndex++, nMainIndex++)
 	{
 		if (cmd[nMainIndex] == ' ')
@@ -1462,18 +411,18 @@ void GetArguments(const char* cmd, char*** chCmdsArray_out, int* nArgsNum_out)
 	*nArgsNum_out = nArgsNum;
 }
 
-// °ïÖú²Ëµ¥
+// å¸®åŠ©èœå•
 void HelpMenu()
 {
 	system("start ./res/help/help.html");
-	printf("ÒÑ´ò¿ª°ïÖúÎÄµµ£¬ÇëÉÔºóÒ³Ãæ´ò¿ª¡£\n");
+	printf("å·²æ‰“å¼€å¸®åŠ©æ–‡æ¡£ï¼Œè¯·ç¨åé¡µé¢æ‰“å¼€ã€‚\n");
 }
 
-// ´Ó×Ö·û´®×ª»»³É ID ºÅ
-// str ±íÊ¾Ô­×Ö·û´®
-// type_out ±íÊ¾ ID ÀàĞÍ£¬Îª 0 ±íÊ¾ÎïÆ·£¬Îª 1 ±íÊ¾³¯Ïò
-// id_out ±íÊ¾ ID
-// ·µ»ØÊäÈëµÄ×Ö·û´®ÊÇ·ñºÏ·¨
+// ä»å­—ç¬¦ä¸²è½¬æ¢æˆ ID å·
+// str è¡¨ç¤ºåŸå­—ç¬¦ä¸²
+// type_out è¡¨ç¤º ID ç±»å‹ï¼Œä¸º 0 è¡¨ç¤ºç‰©å“ï¼Œä¸º 1 è¡¨ç¤ºæœå‘
+// id_out è¡¨ç¤º ID
+// è¿”å›è¾“å…¥çš„å­—ç¬¦ä¸²æ˜¯å¦åˆæ³•
 bool GetIdFromString(const char* str, int* type_out, int* id_out)
 {
 	const int OBJECT = 0;
@@ -1544,7 +493,7 @@ bool GetIdFromString(const char* str, int* type_out, int* id_out)
 		*id_out = RS_TO_RIGHT;
 	}
 
-	// ´íÎóµÄÊäÈë
+	// é”™è¯¯çš„è¾“å…¥
 	else
 	{
 		return false;
@@ -1553,13 +502,13 @@ bool GetIdFromString(const char* str, int* type_out, int* id_out)
 	return true;
 }
 
-// ¼ìÑé×ø±êºÏ·¨ĞÔ£¨ÊÇ·ñ³¬³öµØÍ¼£©
+// æ£€éªŒåæ ‡åˆæ³•æ€§ï¼ˆæ˜¯å¦è¶…å‡ºåœ°å›¾ï¼‰
 bool PointIsInMap(RsMap* map, int x, int y)
 {
 	return x >= 0 && x < map->w&& y >= 0 && y < map->h;
 }
 
-// ´¦ÀíÍ¼Ïñ
+// å¤„ç†å›¾åƒ
 void Render(
 	RsMap* map,
 	bool redraw,
@@ -1580,7 +529,7 @@ void Render(
 		GetRsMapImage(&imgMap, &imgRulerX, &imgRulerY, map, redraw, resize, bShowXY, bShowRuler);
 	if (draw || zoom_changed)
 	{
-		// Ëõ·ÅÍ¼Ïñ
+		// ç¼©æ”¾å›¾åƒ
 		imgMap_zoomed = imgMap;
 		imgRulerX_zoomed = imgRulerX;
 		imgRulerY_zoomed = imgRulerY;
@@ -1593,26 +542,26 @@ void Render(
 			);
 	}
 
-	// Êä³ö
+	// è¾“å‡º
 	BEGIN_TASK_WND(hGraphicsWnd);
 	{
 		cleardevice();
 
-		// Êä³öÍ¼Ïñ
-		// ´æÔÚ±ê³ßÊ±£¬ĞèÒª½«Í¼ÏñÆ«ÒÆ¼ÓÉÏ±ê³ßµÄ´óĞ¡
-		// ¸É´àÈÎºÎÊ±ºò¶¼¼ÓÉÏ°É£¬ÕâÑù¼ÆËãÊó±ê×ø±êµÄÊ±ºò²»ĞèÒª·ÖÇé¿ö
+		// è¾“å‡ºå›¾åƒ
+		// å­˜åœ¨æ ‡å°ºæ—¶ï¼Œéœ€è¦å°†å›¾åƒåç§»åŠ ä¸Šæ ‡å°ºçš„å¤§å°
+		// å¹²è„†ä»»ä½•æ—¶å€™éƒ½åŠ ä¸Šå§ï¼Œè¿™æ ·è®¡ç®—é¼ æ ‡åæ ‡çš„æ—¶å€™ä¸éœ€è¦åˆ†æƒ…å†µ
 		int render_offset_x = nMapOutX + offset_x + (int)(nRulerWidth * zoom);
 		int render_offset_y = nMapOutY + offset_y + (int)(nRulerHeight * zoom);
 		putimage(render_offset_x, render_offset_y, &imgMap_zoomed);
 
-		// ¸´ÖÆ»æÖÆºÃµÄ±ê³ß
+		// å¤åˆ¶ç»˜åˆ¶å¥½çš„æ ‡å°º
 		if (bShowXY && bShowRuler)
 		{
 			putimage(nMapOutX + offset_x + (int)(nRulerWidth * zoom), nMapOutY, &imgRulerX_zoomed);
 			putimage(nMapOutX, nMapOutY + offset_y + (int)(nRulerHeight * zoom), &imgRulerY_zoomed);
 		}
 
-		// »æÖÆ¶¥À¸
+		// ç»˜åˆ¶é¡¶æ 
 		int w = getwidth();
 		setfillcolor(RGB(50, 50, 50));
 		solidrectangle(0, 0, w, nMapOutY);
@@ -1620,7 +569,7 @@ void Render(
 		WCHAR strName[] = L"Minecraft Redstone Simulator";
 		outtextxy((w - textwidth(strName)) / 2, 3, strName);
 
-		// °´Å¥»æÖÆ
+		// æŒ‰é’®ç»˜åˆ¶
 		setfillcolor(BLUE);
 		RECT pBtns[3] = { rctSaveBtn,rctResizeBtn,rctHelpBtn };
 		WCHAR pStrs[3][12] = { L"SAVE",L"RESIZE",L"HELP" };
@@ -1634,30 +583,30 @@ void Render(
 	FLUSH_DRAW();
 }
 
-// µã»÷Ò»¸ö°´Å¥£¨×èÈû£©
+// ç‚¹å‡»ä¸€ä¸ªæŒ‰é’®ï¼ˆé˜»å¡ï¼‰
 void ClickButton(RsMap* map, int x, int y, int offset_x, int offset_y, double zoom, bool bShowXY, bool bShowRuler)
 {
 	int delay = 1000;
 
 	if (map->map[y][x].nType == RS_BUTTON)
 	{
-		map->map[y][x].bPower = true;
+		map->map[y][x].bPowered = true;
 		RunRsMap(map);
 
-		Render(map, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// ÊÖ¶¯ÖØ»æ
+		Render(map, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// æ‰‹åŠ¨é‡ç»˜
 
 		Sleep(delay);
-		map->map[y][x].bPower = false;
+		map->map[y][x].bPowered = false;
 		RunRsMap(map);
 
 		Render(map, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);
 	}
 }
 
-// µÃµ½ÅÅĞòºÃÇÒºÏ·¨µÄ×ø±ê£¨Õë¶ÔÁ½¸ö×ø±êÊ¹ÓÃ£©
+// å¾—åˆ°æ’åºå¥½ä¸”åˆæ³•çš„åæ ‡ï¼ˆé’ˆå¯¹ä¸¤ä¸ªåæ ‡ä½¿ç”¨ï¼‰
 void GetSortingPoint(RsMap* map, int* x1, int* y1, int* x2, int* y2)
 {
-	// È·±£x1 <= x2, y1 <= y2
+	// ç¡®ä¿x1 <= x2, y1 <= y2
 	if (*x1 > *x2)
 	{
 		int temp = *x1;
@@ -1671,7 +620,7 @@ void GetSortingPoint(RsMap* map, int* x1, int* y1, int* x2, int* y2)
 		*y2 = temp;
 	}
 
-	// È·±£×ø±êºÏ·¨
+	// ç¡®ä¿åæ ‡åˆæ³•
 	if (*x1 < 0)
 		*x1 = 0;
 	if (*x2 >= map->w)
@@ -1682,11 +631,11 @@ void GetSortingPoint(RsMap* map, int* x1, int* y1, int* x2, int* y2)
 		*y2 = map->h - 1;
 }
 
-// ÔÚºìÊ¯µØÍ¼ÖĞ»æÖÆºìÊ¯Ö±Ïß£¨²»µÃÍäÇú£©£¬¿ÉÖ¸¶¨ÓÃÒÔÌî³äºìÊ¯Ö±ÏßµÄÎïÆ·
-// ·µ»ØÊÇ·ñ»æÖÆ³É¹¦£¬»æÖÆ²»³É¹¦µÄÔ­Òò¶¼ÊÇÖ±ÏßÓĞÍäÇú
+// åœ¨çº¢çŸ³åœ°å›¾ä¸­ç»˜åˆ¶çº¢çŸ³ç›´çº¿ï¼ˆä¸å¾—å¼¯æ›²ï¼‰ï¼Œå¯æŒ‡å®šç”¨ä»¥å¡«å……çº¢çŸ³ç›´çº¿çš„ç‰©å“
+// è¿”å›æ˜¯å¦ç»˜åˆ¶æˆåŠŸï¼Œç»˜åˆ¶ä¸æˆåŠŸçš„åŸå› éƒ½æ˜¯ç›´çº¿æœ‰å¼¯æ›²
 bool LineRsMap(RsMap* map, int x1, int y1, int x2, int y2, int object)
 {
-	// ÕûÀí×ø±ê
+	// æ•´ç†åæ ‡
 	GetSortingPoint(map, &x1, &y1, &x2, &y2);
 
 	if (x1 == x2)
@@ -1711,10 +660,10 @@ bool LineRsMap(RsMap* map, int x1, int y1, int x2, int y2, int object)
 	return true;
 }
 
-// Çå³ıºìÊ¯µØÍ¼ÖĞµÄÒ»¿éÇøÓò
+// æ¸…é™¤çº¢çŸ³åœ°å›¾ä¸­çš„ä¸€å—åŒºåŸŸ
 void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2)
 {
-	// ÕûÀí×ø±ê
+	// æ•´ç†åæ ‡
 	GetSortingPoint(map, &x1, &y1, &x2, &y2);
 
 	for (int i = y1; i <= y2; i++)
@@ -1726,24 +675,24 @@ void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2)
 	}
 }
 
-// ´¦ÀíÓÃ»§ÃüÁîÊäÈë£¨×èÈû£©
+// å¤„ç†ç”¨æˆ·å‘½ä»¤è¾“å…¥ï¼ˆé˜»å¡ï¼‰
 void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool* p_bShowXY, bool* p_bShowRuler)
 {
-	// µØÍ¼ÒÆ¶¯µÄµ¥Î»´óĞ¡£¨ÏñËØ£©
+	// åœ°å›¾ç§»åŠ¨çš„å•ä½å¤§å°ï¼ˆåƒç´ ï¼‰
 	const int offset_unit_size = 10;
 
-	// ÃüÁî×î³¤³¤¶È
+	// å‘½ä»¤æœ€é•¿é•¿åº¦
 	int nMaxInputdSize = 1024;
 	char* chCmd = new char[nMaxInputdSize];
 	memset(chCmd, 0, nMaxInputdSize);
 
 	gets_s(chCmd, nMaxInputdSize);
 
-	// ²ÎÊıÊıÁ¿
+	// å‚æ•°æ•°é‡
 	static int nArgsNum = 0;
 	static char** chCmdsArray = NULL;
 
-	// ÇåÀíÉÏÒ»´ÎµÄÄÚ´æ
+	// æ¸…ç†ä¸Šä¸€æ¬¡çš„å†…å­˜
 	if (chCmdsArray != NULL)
 	{
 		for (int i = 0; i < nArgsNum; i++)
@@ -1751,38 +700,38 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		delete[] chCmdsArray;
 	}
 
-	// ½âÎö²ÎÊı
+	// è§£æå‚æ•°
 	GetArguments(chCmd, &chCmdsArray, &nArgsNum);
 
 	delete[] chCmd;
 
-	// ÉèÖÃÊÇ·ñ¿ªÆôÏÔÊ¾×ø±ê
+	// è®¾ç½®æ˜¯å¦å¼€å¯æ˜¾ç¤ºåæ ‡
 	if (nArgsNum == 1 && strcmp(chCmdsArray[0], "xy") == 0)
 	{
 		*p_bShowXY = !(*p_bShowXY);
 	}
 
-	// ÇĞ»»×ø±êÏÔÊ¾Ä£Ê½
+	// åˆ‡æ¢åæ ‡æ˜¾ç¤ºæ¨¡å¼
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "xy_mode") == 0)
 	{
 		*p_bShowRuler = !(*p_bShowRuler);
 	}
 
-	// °ïÖú
+	// å¸®åŠ©
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "help") == 0)
 	{
 		HelpMenu();
 		return;
 	}
 
-	// ÇåÆÁ
+	// æ¸…å±
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "cls") == 0)
 	{
 		system("cls");
 		return;
 	}
 
-	// Ö±½ÓÊäÈë×ø±ê±íÊ¾ÔÚÄ³Î»ÖÃ·ÅÖÃºìÊ¯·Û£¬Èç¹ûÄÇ¸öÎ»ÖÃÒÑÓĞÎïÆ·£¬ÔòÇå³ıÄÇ¸öÎïÆ·
+	// ç›´æ¥è¾“å…¥åæ ‡è¡¨ç¤ºåœ¨æŸä½ç½®æ”¾ç½®çº¢çŸ³ç²‰ï¼Œå¦‚æœé‚£ä¸ªä½ç½®å·²æœ‰ç‰©å“ï¼Œåˆ™æ¸…é™¤é‚£ä¸ªç‰©å“
 	else if (nArgsNum == 2 && isAllNum(chCmdsArray[0]) && isAllNum(chCmdsArray[1]))
 	{
 		int x = atoi(chCmdsArray[0]);
@@ -1790,7 +739,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (!PointIsInMap(map, x, y))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}
 
@@ -1804,17 +753,17 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		}
 	}
 
-	// ×ø±ê ×ø±ê ÎïÆ· £¨³¯Ïò£©
-	// Á½ÖÖÇé¿ö£º
-	// ÔÚÄ³Î»ÖÃ·ÅÖÃÄ³ÎïÆ·£¬Èç¹ûÄÇ¸öÎ»ÖÃÒÑÓĞÎïÆ·£¬Ôò¸²¸ÇÄÇ¸öÎïÆ·¡£ºìÊ¯ÖĞ¼ÌÆ÷ÓĞ³¯ÏòÉè¶¨£¬Èç¹ûÁô¿ÕÔò±íÊ¾ÏòÉÏ
-	// ÉèÖÃÄ³Î»ÖÃµÄÎïÆ·µÄ³¯Ïò£¨Õë¶ÔºìÊ¯ÖĞ¼ÌÆ÷£©
+	// åæ ‡ åæ ‡ ç‰©å“ ï¼ˆæœå‘ï¼‰
+	// ä¸¤ç§æƒ…å†µï¼š
+	// åœ¨æŸä½ç½®æ”¾ç½®æŸç‰©å“ï¼Œå¦‚æœé‚£ä¸ªä½ç½®å·²æœ‰ç‰©å“ï¼Œåˆ™è¦†ç›–é‚£ä¸ªç‰©å“ã€‚çº¢çŸ³ä¸­ç»§å™¨æœ‰æœå‘è®¾å®šï¼Œå¦‚æœç•™ç©ºåˆ™è¡¨ç¤ºå‘ä¸Š
+	// è®¾ç½®æŸä½ç½®çš„ç‰©å“çš„æœå‘ï¼ˆé’ˆå¯¹çº¢çŸ³ä¸­ç»§å™¨ï¼‰
 	else if ((nArgsNum == 3 || nArgsNum == 4) && isAllNum(chCmdsArray[0]) && isAllNum(chCmdsArray[1]) && !isAllNum(chCmdsArray[2]))
 	{
 		int type;
 		int id;
 		if (!GetIdFromString(chCmdsArray[2], &type, &id))
 		{
-			printf("·½¿éÃû³Æ´íÎó¡£\n");
+			printf("æ–¹å—åç§°é”™è¯¯ã€‚\n");
 			return;
 		}
 
@@ -1823,7 +772,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (!PointIsInMap(map, x, y))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}
 
@@ -1831,14 +780,14 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		{
 			PutObjectToRsMap(map, x, y, id);
 
-			// ÈçÓĞËÄ¸ö²ÎÊı£¬ËµÃ÷»¹ÓĞÒ»¸ö³¯Ïò
+			// å¦‚æœ‰å››ä¸ªå‚æ•°ï¼Œè¯´æ˜è¿˜æœ‰ä¸€ä¸ªæœå‘
 			if (nArgsNum == 4)
 			{
 				int type2;
 				int direction;
 				if (!GetIdFromString(chCmdsArray[3], &type2, &direction))
 				{
-					printf("ÃüÁîÖ´ĞĞ²»ÍêÈ«ºóÒòÓï·¨´íÎó¶øÖÕÖ¹ÁË¡£´íÎóÔ­Òò£ºµÚËÄ¸ö²ÎÊıÎ´ÄÜÖ¸¶¨·½¿é³¯Ïò¡£\n");
+					printf("å‘½ä»¤æ‰§è¡Œä¸å®Œå…¨åå› è¯­æ³•é”™è¯¯è€Œç»ˆæ­¢äº†ã€‚é”™è¯¯åŸå› ï¼šç¬¬å››ä¸ªå‚æ•°æœªèƒ½æŒ‡å®šæ–¹å—æœå‘ã€‚\n");
 					return;
 				}
 
@@ -1848,7 +797,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				}
 				else
 				{
-					printf("ÃüÁîÖ´ĞĞ²»ÍêÈ«ºóÒòÓï·¨´íÎó¶øÖÕÖ¹ÁË¡£´íÎóÔ­Òò£ºµÚËÄ¸ö²ÎÊıÎ´ÄÜÖ¸¶¨·½¿é³¯Ïò¡£\n");
+					printf("å‘½ä»¤æ‰§è¡Œä¸å®Œå…¨åå› è¯­æ³•é”™è¯¯è€Œç»ˆæ­¢äº†ã€‚é”™è¯¯åŸå› ï¼šç¬¬å››ä¸ªå‚æ•°æœªèƒ½æŒ‡å®šæ–¹å—æœå‘ã€‚\n");
 					return;
 				}
 			}
@@ -1857,7 +806,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		{
 			if (map->map[y][x].nType == RS_NULL)
 			{
-				printf("¸Ã×ø±ê²¢ÎŞÎïÆ··½¿é¡£\n");
+				printf("è¯¥åæ ‡å¹¶æ— ç‰©å“æ–¹å—ã€‚\n");
 				return;
 			}
 			else
@@ -1867,7 +816,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		}
 	}
 
-	// . ×ø±êx ×ø±êy
+	// . åæ ‡x åæ ‡y
 	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], ".") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
 	{
 		int x = atoi(chCmdsArray[1]);
@@ -1875,19 +824,19 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (!PointIsInMap(map, x, y))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}
 
 		switch (map->map[y][x].nType)
 		{
 		case RS_NULL:
-			printf("¸Ã×ø±ê²¢ÎŞÎïÆ··½¿é¡£\n");
+			printf("è¯¥åæ ‡å¹¶æ— ç‰©å“æ–¹å—ã€‚\n");
 			return;
 			break;
 
 		case RS_ROD:
-			map->map[y][x].bPower = !map->map[y][x].bPower;
+			map->map[y][x].bPowered = !map->map[y][x].bPowered;
 			break;
 
 		case RS_BUTTON:
@@ -1895,13 +844,13 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			break;
 
 		default:
-			printf("¸ÃÎïÆ·²»Ö§³Öµã»÷²Ù×÷¡£\n");
+			printf("è¯¥ç‰©å“ä¸æ”¯æŒç‚¹å‡»æ“ä½œã€‚\n");
 			return;
 			break;
 		}
 	}
 
-	// resize ¿í ¸ß
+	// resize å®½ é«˜
 	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], "resize") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
 	{
 		int w = atoi(chCmdsArray[1]);
@@ -1909,88 +858,88 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (w <= 0 || h <= 0)
 		{
-			printf("µØÍ¼´óĞ¡²»µÃĞ¡ÓÚµÈÓÚ0\n");
+			printf("åœ°å›¾å¤§å°ä¸å¾—å°äºç­‰äº0\n");
 			return;
 		}
 
 		ResizeRsMap(map, w, h);
 	}
 
-	// save ±£´æÏîÄ¿
+	// save ä¿å­˜é¡¹ç›®
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "save") == 0)
 	{
 		if (SaveProject(*map, SelectFile(true)))
 		{
-			printf("±£´æ³É¹¦¡£\n");
+			printf("ä¿å­˜æˆåŠŸã€‚\n");
 			return;
 		}
 		else
 		{
-			printf("±£´æÊ§°Ü¡£\n");
+			printf("ä¿å­˜å¤±è´¥ã€‚\n");
 			return;
 		}
 	}
 
-	// ½«µØÍ¼»­ÃæµÄxyÆ«ÒÆ¶¼»Øµ½0
+	// å°†åœ°å›¾ç”»é¢çš„xyåç§»éƒ½å›åˆ°0
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "reset_map_offset") == 0)
 	{
 		*offset_x = 0;
 		*offset_y = 0;
 	}
 
-	// ÒÆ¶¯µØÍ¼
+	// ç§»åŠ¨åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "up") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*offset_y -= atoi(chCmdsArray[1]) * offset_unit_size;
 	}
 
-	// ÒÆ¶¯µØÍ¼
+	// ç§»åŠ¨åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "down") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*offset_y += atoi(chCmdsArray[1]) * offset_unit_size;
 	}
 
-	// ÒÆ¶¯µØÍ¼
+	// ç§»åŠ¨åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "left") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*offset_x -= atoi(chCmdsArray[1]) * offset_unit_size;
 	}
 
-	// ÒÆ¶¯µØÍ¼
+	// ç§»åŠ¨åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "right") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*offset_x += atoi(chCmdsArray[1]) * offset_unit_size;
 	}
 
-	// Ëõ·ÅµØÍ¼
+	// ç¼©æ”¾åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "zoom") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*zoom = atoi(chCmdsArray[1]) / 100.0;
 	}
 
-	// Ëõ·ÅµØÍ¼
+	// ç¼©æ”¾åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "zoom+") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*zoom += atoi(chCmdsArray[1]) / 100.0;
 	}
 
-	// Ëõ·ÅµØÍ¼
+	// ç¼©æ”¾åœ°å›¾
 	else if (nArgsNum == 2 && strcmp(chCmdsArray[0], "zoom-") == 0 && isAllNum(chCmdsArray[1]))
 	{
 		*zoom -= atoi(chCmdsArray[1]) / 100.0;
 	}
 
-	// µÃµ½µØÍ¼Æ«ÒÆÁ¿
+	// å¾—åˆ°åœ°å›¾åç§»é‡
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "get_map_offset") == 0)
 	{
-		printf("xÖáÆ«ÒÆÁ¿£º%d¸öµ¥Î»£¨¼´%dÏñËØ£©\nyÖáÆ«ÒÆÁ¿£º%d¸öµ¥Î»£¨¼´%dÏñËØ£©\n",
+		printf("xè½´åç§»é‡ï¼š%dä¸ªå•ä½ï¼ˆå³%dåƒç´ ï¼‰\nyè½´åç§»é‡ï¼š%dä¸ªå•ä½ï¼ˆå³%dåƒç´ ï¼‰\n",
 			*offset_x / offset_unit_size, *offset_x, *offset_y / offset_unit_size, *offset_y);
 	}
 
-	// µÃµ½µØÍ¼Ëõ·ÅÁ¿
+	// å¾—åˆ°åœ°å›¾ç¼©æ”¾é‡
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "get_map_zoom") == 0)
 	{
-		printf("Ëõ·ÅÁ¿£º%d%%\n", (int)(*zoom * 100));
+		printf("ç¼©æ”¾é‡ï¼š%d%%\n", (int)(*zoom * 100));
 	}
 
 	// import l l
@@ -2001,38 +950,38 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		/*if (!PointIsInMap(map, l, l))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}*/
 
-		printf("ÇëÑ¡ÔñÒªµ¼ÈëµÄÏîÄ¿¡£\n");
+		printf("è¯·é€‰æ‹©è¦å¯¼å…¥çš„é¡¹ç›®ã€‚\n");
 
 		const WCHAR* map_file = SelectFile();
 		RsMap import_map = OpenProject(map_file);
 
 		char warning[512] = { 0 };
 		sprintf_s(warning, 512,
-			"ÄãÕıÔÚµ¼ÈëÒ»¸öÏîÄ¿¡£ÒÔÏÂÊÇµ¼ÈëÏîÄ¿µÄĞÅÏ¢£º\n"
-			"µ¼Èë×ÓÏîÄ¿µ½Ö÷ÏîÄ¿µÄ×óÉÏ½ÇÎ»ÖÃ£º( %d, %d )¡£\n"
-			"×ÓÏîÄ¿µØÍ¼´óĞ¡£º¿í %d ¸ñ£¬¸ß %d ¸ñ¡£\n"
-			"×ÓÏîÄ¿½«¸²¸ÇÖ÷ÏîÄ¿µÄÒÔÏÂ·¶Î§£º( %d, %d ) µ½ ( %d, %d )£¬Èç¹û³¬³öÖ÷ÏîÄ¿µÄµØÍ¼´óĞ¡Ôò×Ô¶¯½«³¬³öµÄ²¿·Ö²Ã¼ô¡£\n"
+			"ä½ æ­£åœ¨å¯¼å…¥ä¸€ä¸ªé¡¹ç›®ã€‚ä»¥ä¸‹æ˜¯å¯¼å…¥é¡¹ç›®çš„ä¿¡æ¯ï¼š\n"
+			"å¯¼å…¥å­é¡¹ç›®åˆ°ä¸»é¡¹ç›®çš„å·¦ä¸Šè§’ä½ç½®ï¼š( %d, %d )ã€‚\n"
+			"å­é¡¹ç›®åœ°å›¾å¤§å°ï¼šå®½ %d æ ¼ï¼Œé«˜ %d æ ¼ã€‚\n"
+			"å­é¡¹ç›®å°†è¦†ç›–ä¸»é¡¹ç›®çš„ä»¥ä¸‹èŒƒå›´ï¼š( %d, %d ) åˆ° ( %d, %d )ï¼Œå¦‚æœè¶…å‡ºä¸»é¡¹ç›®çš„åœ°å›¾å¤§å°åˆ™è‡ªåŠ¨å°†è¶…å‡ºçš„éƒ¨åˆ†è£å‰ªã€‚\n"
 			"\n\n"
-			"ÊÇ·ñ¼ÌĞøµ¼Èë´ËÏîÄ¿£¿µã»÷¡¾È·¶¨¡¿À´È·¶¨µ¼Èë´ËÏîÄ¿£¬·ñÔòµã»÷¡¾È¡Ïû¡¿ÖÕÖ¹´Ë²Ù×÷¡£Èç¹ûÄãµ£ĞÄÔì³É²»¿ÉÄæµÄºó¹û£¬¿ÉÒÔÏÈ±£´æµ±Ç°ÏîÄ¿£¬ÔÙ½øĞĞµ¼Èë¡£\n"
+			"æ˜¯å¦ç»§ç»­å¯¼å…¥æ­¤é¡¹ç›®ï¼Ÿç‚¹å‡»ã€ç¡®å®šã€‘æ¥ç¡®å®šå¯¼å…¥æ­¤é¡¹ç›®ï¼Œå¦åˆ™ç‚¹å‡»ã€å–æ¶ˆã€‘ç»ˆæ­¢æ­¤æ“ä½œã€‚å¦‚æœä½ æ‹…å¿ƒé€ æˆä¸å¯é€†çš„åæœï¼Œå¯ä»¥å…ˆä¿å­˜å½“å‰é¡¹ç›®ï¼Œå†è¿›è¡Œå¯¼å…¥ã€‚\n"
 			, x, y, import_map.w, import_map.h, x, y, x + import_map.w, y + import_map.h);
 
 		wchar_t wstr[512] = { 0 };
 		MultiByteToWideChar(CP_ACP, 0, warning, (int)strlen(warning), wstr, (int)strlen(warning));
 
-		if (MessageBox(GetConsoleWindow(), wstr, L"È·¶¨£¿", MB_OKCANCEL) == IDOK)
+		if (MessageBox(GetConsoleWindow(), wstr, L"ç¡®å®šï¼Ÿ", MB_OKCANCEL) == IDOK)
 		{
 			ImportProject(map, import_map, x, y);
 		}
 
 		DeleteRsMap(&import_map);
-		printf("µ¼ÈëÍê±Ï¡£\n");
+		printf("å¯¼å…¥å®Œæ¯•ã€‚\n");
 	}
 
-	// line ×ø±êx1 ×ø±êy1 ×ø±êx2 ×ø±êy2 (ÎïÆ·) : »­ºìÊ¯Ö±Ïß£¨²»ÄÜÍäÇú£©£¬Èç¹ûÔÚÄ©Î²¼ÓÉÏÎïÆ·Ãû±íÊ¾ÒÔÄ³·½¿éÌî³äÖ±Ïß¡£
+	// line åæ ‡x1 åæ ‡y1 åæ ‡x2 åæ ‡y2 (ç‰©å“) : ç”»çº¢çŸ³ç›´çº¿ï¼ˆä¸èƒ½å¼¯æ›²ï¼‰ï¼Œå¦‚æœåœ¨æœ«å°¾åŠ ä¸Šç‰©å“åè¡¨ç¤ºä»¥æŸæ–¹å—å¡«å……ç›´çº¿ã€‚
 	else if (
 		(nArgsNum == 5 || nArgsNum == 6) && strcmp(chCmdsArray[0], "line") == 0 &&
 		isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]) && isAllNum(chCmdsArray[3]) && isAllNum(chCmdsArray[4]) ||
@@ -2054,7 +1003,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (!PointIsInMap(map, x1, y1) || !PointIsInMap(map, x2, y2))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}
 
@@ -2063,19 +1012,19 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			int type;
 			if (!GetIdFromString(chCmdsArray[start + 4], &type, &id) || type != 0)
 			{
-				printf("×îºóÒ»¸ö²ÎÊıÓ¦¸ÃÊÇÎïÆ·id¡£\n");
+				printf("æœ€åä¸€ä¸ªå‚æ•°åº”è¯¥æ˜¯ç‰©å“idã€‚\n");
 				return;
 			}
 		}
 
 		if (!LineRsMap(map, x1, y1, x2, y2, id))
 		{
-			printf("(%d, %d) µ½ (%d, %d) ÓĞÍäÇú£¬ÎŞ·¨»æÖÆÖ±Ïß¡£\n", x1, y1, x2, y2);
+			printf("(%d, %d) åˆ° (%d, %d) æœ‰å¼¯æ›²ï¼Œæ— æ³•ç»˜åˆ¶ç›´çº¿ã€‚\n", x1, y1, x2, y2);
 			return;
 		}
 	}
 
-	// clear ×ø±êx1 ×ø±êy1 ×ø±êx2 ×ø±êy2 : ÒÔ¿ÕÆø·½¿é¸²¸Ç (x1,y1) µ½ (x2,y2) µÄËùÓĞ·½¿é¡£
+	// clear åæ ‡x1 åæ ‡y1 åæ ‡x2 åæ ‡y2 : ä»¥ç©ºæ°”æ–¹å—è¦†ç›– (x1,y1) åˆ° (x2,y2) çš„æ‰€æœ‰æ–¹å—ã€‚
 	else if (nArgsNum == 5 && strcmp(chCmdsArray[0], "clear") == 0 &&
 		isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]) && isAllNum(chCmdsArray[3]) && isAllNum(chCmdsArray[4]))
 	{
@@ -2086,47 +1035,47 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 		if (!PointIsInMap(map, x1, y1) || !PointIsInMap(map, x2, y2))
 		{
-			printf("×ø±êÔ½½ç¡£\n");
+			printf("åæ ‡è¶Šç•Œã€‚\n");
 			return;
 		}
 
 		ClearRsMap(map, x1, y1, x2, y2);
 	}
 
-	// exit ÍË³ö³ÌĞò
+	// exit é€€å‡ºç¨‹åº
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "exit") == 0)
 	{
-		if (MessageBox(GetConsoleWindow(), L"È·¶¨ÒªÍË³ö³ÌĞòÂğ£¿", L"ÍË³ö³ÌĞò", MB_OKCANCEL) == IDOK)
+		if (MessageBox(GetConsoleWindow(), L"ç¡®å®šè¦é€€å‡ºç¨‹åºå—ï¼Ÿ", L"é€€å‡ºç¨‹åº", MB_OKCANCEL) == IDOK)
 		{
 			exit(0);
 		}
 	}
 
-	// cmd_window_top Ê¹cmd¶¥ÖÃ
+	// cmd_window_top ä½¿cmdé¡¶ç½®
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "cmd_window_top") == 0)
 	{
 		SetWindowPos(GetConsoleWindow(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	// cmd_window_no_top Ê¹cmd²»¶¥ÖÃ
+	// cmd_window_no_top ä½¿cmdä¸é¡¶ç½®
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "cmd_window_no_top") == 0)
 	{
 		SetWindowPos(GetConsoleWindow(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	// map_window_top Ê¹»æÍ¼´°¿Ú¶¥ÖÃ
+	// map_window_top ä½¿ç»˜å›¾çª—å£é¡¶ç½®
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "map_window_top") == 0)
 	{
 		SetWindowPos(GetHWnd(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	// map_window_no_top Ê¹»æÍ¼´°¿Ú²»¶¥ÖÃ
+	// map_window_no_top ä½¿ç»˜å›¾çª—å£ä¸é¡¶ç½®
 	else if (nArgsNum == 1 && strcmp(chCmdsArray[0], "map_window_no_top") == 0)
 	{
 		SetWindowPos(GetHWnd(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	// resize_cmd_window ÉèÖÃcmd´°¿Ú´óĞ¡
+	// resize_cmd_window è®¾ç½®cmdçª—å£å¤§å°
 	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], "resize_cmd_window") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
 	{
 		int w = atoi(chCmdsArray[1]);
@@ -2136,7 +1085,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 		system(cmd);
 	}
 
-	// resize_map_window ÉèÖÃ»æÍ¼´°¿Ú´óĞ¡
+	// resize_map_window è®¾ç½®ç»˜å›¾çª—å£å¤§å°
 	else if (nArgsNum == 3 && strcmp(chCmdsArray[0], "resize_map_window") == 0 && isAllNum(chCmdsArray[1]) && isAllNum(chCmdsArray[2]))
 	{
 		int w = atoi(chCmdsArray[1]);
@@ -2146,14 +1095,14 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 	else
 	{
-		printf("Î´ÖªÃüÁî¡£\n");
+		printf("æœªçŸ¥å‘½ä»¤ã€‚\n");
 		return;
 	}
 
-	printf("Ö´ĞĞÍê±Ï¡£\n");
+	printf("æ‰§è¡Œå®Œæ¯•ã€‚\n");
 }
 
-// ×èÈû´¦Àí CMD ÏûÏ¢
+// é˜»å¡å¤„ç† CMD æ¶ˆæ¯
 void CommandMessageLoop(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool* p_bShowXY, bool* p_bShowRuler)
 {
 	while (true)
@@ -2162,29 +1111,29 @@ void CommandMessageLoop(RsMap* map, int* offset_x, int* offset_y, double* zoom, 
 	}
 }
 
-// ÏÔÊ¾°ïÖú´°¿Ú
+// æ˜¾ç¤ºå¸®åŠ©çª—å£
 void HelpBox()
 {
 	int w = 820, h = 420;
-	HWND hHelpWnd = HiEasyX::initgraph_win32(w, h, EW_NORMAL, L"°ïÖú", NULL, hGraphicsWnd);
+	HWND hHelpWnd = HiEasyX::initgraph_win32(w, h, EW_NORMAL, L"å¸®åŠ©", NULL, hGraphicsWnd);
 	DisableResizing(true);
 
 	RECT rctDoneBtn = { w / 2 - 25,h - 35,w / 2 + 25,h - 8 };
 
 	BEGIN_TASK();
 
-	settextstyle(46, 0, L"ËÎÌå");
-	outtextxy(30, 20, L"MCRedStoneSimulator Ê¹ÓÃËµÃ÷");
-	settextstyle(22, 0, L"Î¢ÈíÑÅºÚ");
-	outtextxy(30, 80, L"±¾³ÌĞòÊÇ huidong <mailhuid@163.com> ÖÆ×÷µÄºìÊ¯£¨µçÂ·£©Ä£ÄâÈí¼ş");
-	outtextxy(30, 110, L"Äú¿ÉÒÔÔÚ ToolBar ÖĞÑ¡Ôñ¹¤¾ß»òÔª¼ş£¬²¢ÔÚÏÔÊ¾ÓĞµçÂ·Í¼µÄ´°¿ÚÖĞÊ¹ÓÃËüÃÇÀ´±à¼­µçÂ·Í¼¡£");
-	outtextxy(30, 140, L"ÔÚ³ÌĞòµÄÃüÁîĞĞ´°¿ÚÖĞÄú¿ÉÒÔ¼üÈëÖ¸Áî¶ÔµçÂ·ÏîÄ¿½øĞĞ²Ù×÷£¬ÊäÈë¡°help¡±Ö¸Áî¿ÉÒÔ²é¿´Ö¸Áî±í¡£");
-	outtextxy(30, 200, L"×ó¼üµ¥»÷£º²Ù×÷Ôª¼ş    Ctrl + ×ó¼ü£ºÇå³ıÔª¼ş           ÔÚ ToolBar ÖĞ£º");
-	outtextxy(30, 230, L"×ó¼üÍÏ¶¯£ºÒÆ¶¯µØÍ¼    Ctrl + ÓÒ¼ü£ºĞı×ªÔª¼ş           Ñ¡Ôñµ½Êó±êÊ±£¬ÓÒ¼üµ¥»÷¿ÉÒÔ²Ù×÷Ôª¼ş");
-	outtextxy(30, 260, L"Êó±ê¹öÂÖ£ºËõ·ÅµØÍ¼");
-	outtextxy(410, 260, L"Ñ¡Ôñµ½Ôª¼şÊ±£¬ÓÒ¼ü°´ÏÂ¿ÉÒÔ·ÅÖÃÔª¼ş");
-	outtextxy(30, 310, L"×÷Õß²©¿Í£ºhttp://huidong.xyz   EasyX Ö÷Õ¾£ºhttps://easyx.cn");
-	outtextxy(30, 340, L"Github ÏîÄ¿µØÖ·£ºhttps://github.com/zouhuidong/MinecraftRedstoneSimulator");
+	settextstyle(46, 0, L"å®‹ä½“");
+	outtextxy(30, 20, L"MCRedStoneSimulator ä½¿ç”¨è¯´æ˜");
+	settextstyle(22, 0, L"å¾®è½¯é›…é»‘");
+	outtextxy(30, 80, L"æœ¬ç¨‹åºæ˜¯ huidong <mailhuid@163.com> åˆ¶ä½œçš„çº¢çŸ³ï¼ˆç”µè·¯ï¼‰æ¨¡æ‹Ÿè½¯ä»¶");
+	outtextxy(30, 110, L"æ‚¨å¯ä»¥åœ¨ ToolBar ä¸­é€‰æ‹©å·¥å…·æˆ–å…ƒä»¶ï¼Œå¹¶åœ¨æ˜¾ç¤ºæœ‰ç”µè·¯å›¾çš„çª—å£ä¸­ä½¿ç”¨å®ƒä»¬æ¥ç¼–è¾‘ç”µè·¯å›¾ã€‚");
+	outtextxy(30, 140, L"åœ¨ç¨‹åºçš„å‘½ä»¤è¡Œçª—å£ä¸­æ‚¨å¯ä»¥é”®å…¥æŒ‡ä»¤å¯¹ç”µè·¯é¡¹ç›®è¿›è¡Œæ“ä½œï¼Œè¾“å…¥â€œhelpâ€æŒ‡ä»¤å¯ä»¥æŸ¥çœ‹æŒ‡ä»¤è¡¨ã€‚");
+	outtextxy(30, 200, L"å·¦é”®å•å‡»ï¼šæ“ä½œå…ƒä»¶    Ctrl + å·¦é”®ï¼šæ¸…é™¤å…ƒä»¶           åœ¨ ToolBar ä¸­ï¼š");
+	outtextxy(30, 230, L"å·¦é”®æ‹–åŠ¨ï¼šç§»åŠ¨åœ°å›¾    Ctrl + å³é”®ï¼šæ—‹è½¬å…ƒä»¶           é€‰æ‹©åˆ°é¼ æ ‡æ—¶ï¼Œå³é”®å•å‡»å¯ä»¥æ“ä½œå…ƒä»¶");
+	outtextxy(30, 260, L"é¼ æ ‡æ»šè½®ï¼šç¼©æ”¾åœ°å›¾");
+	outtextxy(410, 260, L"é€‰æ‹©åˆ°å…ƒä»¶æ—¶ï¼Œå³é”®æŒ‰ä¸‹å¯ä»¥æ”¾ç½®å…ƒä»¶");
+	outtextxy(30, 310, L"ä½œè€…åšå®¢ï¼šhttp://huidong.xyz   EasyX ä¸»ç«™ï¼šhttps://easyx.cn");
+	outtextxy(30, 340, L"Github é¡¹ç›®åœ°å€ï¼šhttps://github.com/zouhuidong/MinecraftRedstoneSimulator");
 
 	setfillcolor(BLUE);
 	setbkmode(TRANSPARENT);
@@ -2193,7 +1142,7 @@ void HelpBox()
 	END_TASK();
 	FLUSH_DRAW();
 
-	// ÏûÏ¢ÏìÓ¦
+	// æ¶ˆæ¯å“åº”
 	while (HiEasyX::isAliveWindow(hHelpWnd))
 	{
 		bool end = false;
@@ -2220,7 +1169,7 @@ void HelpBox()
 	}
 }
 
-WCHAR strMapSize[2][12];	// ÔÚÊäÈë¿òÖĞ´æ´¢µØÍ¼´óĞ¡Êı¾İ
+WCHAR strMapSize[2][12];	// åœ¨è¾“å…¥æ¡†ä¸­å­˜å‚¨åœ°å›¾å¤§å°æ•°æ®
 #define IDC_EDIT1	100
 #define IDC_EDIT2	101
 #define IDC_BUTTON	102
@@ -2262,11 +1211,11 @@ bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTAN
 		setbkcolor(CLASSICGRAY);
 		settextcolor(BLACK);
 		cleardevice();
-		outtextxy(30, 30, L"¿í£º");
-		outtextxy(30, 55, L"¸ß£º");
+		outtextxy(30, 30, L"å®½ï¼š");
+		outtextxy(30, 55, L"é«˜ï¼š");
 		settextcolor(GRAY);
-		settextstyle(14, 0, L"ËÎÌå");
-		//outtextxy(30, 80, L"µØÍ¼´óĞ¡³¬³ö 50x50 »òµ¼ÖÂ¿¨¶Ù");
+		settextstyle(14, 0, L"å®‹ä½“");
+		//outtextxy(30, 80, L"åœ°å›¾å¤§å°è¶…å‡º 50x50 æˆ–å¯¼è‡´å¡é¡¿");
 		END_TASK();
 		break;
 	}
@@ -2274,14 +1223,14 @@ bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTAN
 	return true;
 }
 
-// ÏÔÊ¾ÉèÖÃµØÍ¼´óĞ¡´°¿Ú
-// ·µ»ØÊÇ·ñ³É¹¦ÉèÖÃÁËÒ»¸öĞÂµÄ´óĞ¡
+// æ˜¾ç¤ºè®¾ç½®åœ°å›¾å¤§å°çª—å£
+// è¿”å›æ˜¯å¦æˆåŠŸè®¾ç½®äº†ä¸€ä¸ªæ–°çš„å¤§å°
 bool ResizeBox(RsMap* pMap, HWND hParent)
 {
 	_itow_s(pMap->w, strMapSize[0], 10);
 	_itow_s(pMap->h, strMapSize[1], 10);
 
-	HWND hResizeWnd = HiEasyX::initgraph_win32(320, 120, EW_NORMAL, L"ÉèÖÃµØÍ¼´óĞ¡", ResizeBoxWndProc, hParent);
+	HWND hResizeWnd = HiEasyX::initgraph_win32(320, 120, EW_NORMAL, L"è®¾ç½®åœ°å›¾å¤§å°", ResizeBoxWndProc, hParent);
 	DisableResizing(true);
 
 	while (HiEasyX::isAliveWindow(hResizeWnd))
@@ -2294,7 +1243,7 @@ bool ResizeBox(RsMap* pMap, HWND hParent)
 
 	if (w * h == 0)
 	{
-		MessageBox(hParent, L"ÎŞĞ§Öµ", L"Error", MB_OK | MB_ICONERROR);
+		MessageBox(hParent, L"æ— æ•ˆå€¼", L"Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
 	else if (w != pMap->w || h != pMap->h)
@@ -2305,40 +1254,40 @@ bool ResizeBox(RsMap* pMap, HWND hParent)
 	return false;
 }
 
-// ÖØ»æÏûÏ¢
+// é‡ç»˜æ¶ˆæ¯
 enum DrawMsg
 {
-	DM_NULL = 0,		// ÎŞÖØ»æÏûÏ¢
-	DM_TOOLBAR = 1,		// ÖØ»æ¹¤¾ßÀ¸
-	DM_DRAWMAP = 2,		// »æÖÆµØÍ¼
-	DM_REDRAWMAP = 4,	// ÖØĞÂ»æÖÆµØÍ¼
-	DM_RESIZEMAP = 8,	// µØÍ¼´óĞ¡¸Ä±ä
-	DM_ZOOM = 16,		// Ëõ·Å
+	DM_NULL = 0,		// æ— é‡ç»˜æ¶ˆæ¯
+	DM_TOOLBAR = 1,		// é‡ç»˜å·¥å…·æ 
+	DM_DRAWMAP = 2,		// ç»˜åˆ¶åœ°å›¾
+	DM_REDRAWMAP = 4,	// é‡æ–°ç»˜åˆ¶åœ°å›¾
+	DM_RESIZEMAP = 8,	// åœ°å›¾å¤§å°æ”¹å˜
+	DM_ZOOM = 16,		// ç¼©æ”¾
 };
 
-// ´¦ÀíÊó±êÏûÏ¢
-// ·µ»ØÖØ»æÏûÏ¢£¨¼û DrawMsg£©
+// å¤„ç†é¼ æ ‡æ¶ˆæ¯
+// è¿”å›é‡ç»˜æ¶ˆæ¯ï¼ˆè§ DrawMsgï¼‰
 int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool* p_bShowXY, bool* p_bShowRuler, int* pSelect)
 {
-	// »æÍ¼´°¿ÚÏûÏ¢
+	// ç»˜å›¾çª—å£æ¶ˆæ¯
 	ExMessage msgGraWnd;
 	static ExMessage msgGraWndLast = {};
 	static bool bGraWndLBtn = false;
 	static bool bMoved = false;
 
-	// ¹¤¾ßÀ¸´°¿ÚÏûÏ¢
+	// å·¥å…·æ çª—å£æ¶ˆæ¯
 	ExMessage msgToolWnd;
 
-	// ·µ»ØÖµ
+	// è¿”å›å€¼
 	int return_value = DM_NULL;
 
-	// ¹öÂÖËõ·Å´óĞ¡
+	// æ»šè½®ç¼©æ”¾å¤§å°
 	double dZoom;
 
-	// Êó±êµã»÷ÔÚµØÍ¼ÉÏµÄ×ø±ê
+	// é¼ æ ‡ç‚¹å‡»åœ¨åœ°å›¾ä¸Šçš„åæ ‡
 	int nClickMapX, nClickMapY;
 
-	// »æÍ¼´°¿Ú
+	// ç»˜å›¾çª—å£
 	if (HiEasyX::SetWorkingWindow(hGraphicsWnd))
 	{
 		HiEasyX::BeginTask();
@@ -2351,7 +1300,7 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			nClickMapX = (int)((msgGraWnd.x - nMapOutX - nRulerWidth * *zoom - *offset_x) / (nObjSize * *zoom));
 			nClickMapY = (int)((msgGraWnd.y - nMapOutY - nRulerHeight * *zoom - *offset_y) / (nObjSize * *zoom));
 
-			// Ëõ·Å
+			// ç¼©æ”¾
 			if (msgGraWnd.wheel < 0)
 			{
 				if (dZoom >= MIN_ZOOM)
@@ -2369,31 +1318,31 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				}
 			}
 
-			// ×ó¼üµ¯Æğ£º°´Å¥ÏûÏ¢´¦Àí
+			// å·¦é”®å¼¹èµ·ï¼šæŒ‰é’®æ¶ˆæ¯å¤„ç†
 			if (msgGraWnd.message == WM_LBUTTONUP)
 			{
-				// °ïÖú°´Å¥
+				// å¸®åŠ©æŒ‰é’®
 				if (isInRect(msgGraWnd.x, msgGraWnd.y, rctHelpBtn))
 				{
-					// ÖĞÍ¾ÇĞ»»´°¿Ú£¬ËùÒÔÏÈÖÕÖ¹ÈÎÎñ
+					// ä¸­é€”åˆ‡æ¢çª—å£ï¼Œæ‰€ä»¥å…ˆç»ˆæ­¢ä»»åŠ¡
 					HiEasyX::EndTask();
 
 					HelpBox();
 
-					// ÖØĞÂÆô¶¯ÈÎÎñ
+					// é‡æ–°å¯åŠ¨ä»»åŠ¡
 					if (!HiEasyX::SetWorkingWindow(hGraphicsWnd))
 					{
 						goto ToolBar_Begin;
 					}
 					HiEasyX::BeginTask();
 				}
-				// ±£´æ
+				// ä¿å­˜
 				else if (isInRect(msgGraWnd.x, msgGraWnd.y, rctSaveBtn))
 				{
 					SaveProject(*map, SelectFile(true));
 					flushmessage();
 				}
-				// ÖØÉèµØÍ¼´óĞ¡
+				// é‡è®¾åœ°å›¾å¤§å°
 				else if (isInRect(msgGraWnd.x, msgGraWnd.y, rctResizeBtn))
 				{
 					HiEasyX::EndTask();
@@ -2409,19 +1358,19 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				}
 			}
 
-			// ÓÒ¼ü°´ÏÂ
+			// å³é”®æŒ‰ä¸‹
 			if (msgGraWnd.rbutton)
 			{
 				if (PointIsInMap(map, nClickMapX, nClickMapY))
 				{
-					if (msgGraWnd.ctrl)	// Ctrl£ºĞı×ªÔª¼ş
+					if (msgGraWnd.ctrl)	// Ctrlï¼šæ—‹è½¬å…ƒä»¶
 					{
 						if (++map->map[nClickMapY][nClickMapX].nTowards > 3)
 						{
 							map->map[nClickMapY][nClickMapX].nTowards = 0;
 						}
 					}
-					else if (*pSelect != RS_NULL)	// Ñ¡ÔñÔª¼ş£¬·ÅÖÃ
+					else if (*pSelect != RS_NULL)	// é€‰æ‹©å…ƒä»¶ï¼Œæ”¾ç½®
 					{
 						map->map[nClickMapY][nClickMapX].nType = *pSelect;
 					}
@@ -2429,26 +1378,26 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				}
 			}
 
-			// ÓÒ¼üµ¯Æğ »ò ×ó¼üµ¥»÷
+			// å³é”®å¼¹èµ· æˆ– å·¦é”®å•å‡»
 			if (msgGraWnd.message == WM_RBUTTONUP || (msgGraWnd.message == WM_LBUTTONUP && !bMoved))
 			{
-				if (*pSelect == RS_NULL || msgGraWnd.message == WM_LBUTTONUP)	// ²Ù×÷Ôª¼ş
+				if (*pSelect == RS_NULL || msgGraWnd.message == WM_LBUTTONUP)	// æ“ä½œå…ƒä»¶
 				{
 					if (PointIsInMap(map, nClickMapX, nClickMapY))
 					{
 						switch (map->map[nClickMapY][nClickMapX].nType)
 						{
 						case RS_ROD:
-							map->map[nClickMapY][nClickMapX].bPower = !map->map[nClickMapY][nClickMapX].bPower;
+							map->map[nClickMapY][nClickMapX].bPowered = !map->map[nClickMapY][nClickMapX].bPowered;
 							break;
 
 						case RS_BUTTON:
-							// ÖĞÍ¾Æô¶¯ÆäËûÈÎÎñ£¬¹ÊÏÈÖÕÖ¹ÈÎÎñ
+							// ä¸­é€”å¯åŠ¨å…¶ä»–ä»»åŠ¡ï¼Œæ•…å…ˆç»ˆæ­¢ä»»åŠ¡
 							HiEasyX::EndTask();
 
 							ClickButton(map, nClickMapX, nClickMapY, *offset_x, *offset_y, *zoom, *p_bShowXY, *p_bShowRuler);
 
-							// ÖØĞÂÆô¶¯ÈÎÎñ
+							// é‡æ–°å¯åŠ¨ä»»åŠ¡
 							if (!HiEasyX::SetWorkingWindow(hGraphicsWnd))
 							{
 								goto ToolBar_Begin;
@@ -2457,14 +1406,14 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 							break;
 						}
 
-						// ²Ù×÷·Ç¿Õ·½¿é£¬ÖØ»æ
+						// æ“ä½œéç©ºæ–¹å—ï¼Œé‡ç»˜
 						if (map->map[nClickMapY][nClickMapX].nType != RS_NULL)
 							return_value |= DM_REDRAWMAP;
 					}
 				}
 			}
 
-			// ×ó¼üÍÏ¶¯£ºÆ½ÒÆ
+			// å·¦é”®æ‹–åŠ¨ï¼šå¹³ç§»
 			if (bGraWndLBtn)
 			{
 				if (msgGraWnd.x != msgGraWndLast.x || msgGraWnd.y != msgGraWndLast.y)
@@ -2476,7 +1425,7 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				}
 			}
 
-			// ×ó¼ü°´ÏÂÇÒÎ´°´ÏÂ Ctrl ²Å½øĞĞÆ½ÒÆ
+			// å·¦é”®æŒ‰ä¸‹ä¸”æœªæŒ‰ä¸‹ Ctrl æ‰è¿›è¡Œå¹³ç§»
 			if (msgGraWnd.lbutton && !msgGraWnd.ctrl)
 			{
 				bGraWndLBtn = true;
@@ -2484,7 +1433,7 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			}
 			else
 			{
-				// Çå³ı
+				// æ¸…é™¤
 				if (msgGraWnd.lbutton && msgGraWnd.ctrl)
 				{
 					if (PointIsInMap(map, nClickMapX, nClickMapY))
@@ -2492,7 +1441,7 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 						if (map->map[nClickMapY][nClickMapX].nType != RS_NULL)
 						{
 							map->map[nClickMapY][nClickMapX].nType = RS_NULL;
-							map->map[nClickMapY][nClickMapX].bPower = false;
+							map->map[nClickMapY][nClickMapX].bPowered = false;
 							return_value |= DM_REDRAWMAP;
 						}
 					}
@@ -2539,35 +1488,18 @@ ToolBar_Begin:
 	return return_value;
 }
 
-// »æÖÆ¹¤¾ßÀ¸
-void DrawToolBar(int* pSelect)
+// ç»˜åˆ¶å·¥å…·æ 
+void DrawToolBar(int indexSelected)
 {
 	BEGIN_TASK_WND(hToolBarWnd);
 
-	cleardevice();
-	setlinestyle(PS_SOLID, 2);
-	IMAGE* pImg[8] = { &imgCursor,&imgPowder,&imgRod[0],&imgButton[0],
-		&imgTorche[0],&imgLight[0],&imgRelay[0],&imgCross };
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 2; j++)
-		{
-			int id = i * 2 + j;
-			putimage(j * nObjSize + 1, i * nObjSize + 1, pImg[id]);
-			if (*pSelect == id)
-			{
-				int x = j * nObjSize;
-				int y = i * nObjSize;
-				rectangle(x, y, x + nObjSize, y + nObjSize);
-			}
-		}
-	}
+	DrawToolBar_painter(indexSelected);
 
 	END_TASK();
 	FLUSH_DRAW();
 }
 
-// ´°¿Ú´óĞ¡¸Ä±äµÄÏûÏ¢´¦Àí
+// çª—å£å¤§å°æ”¹å˜çš„æ¶ˆæ¯å¤„ç†
 void WindowSized()
 {
 	BEGIN_TASK_WND(hGraphicsWnd);
@@ -2578,10 +1510,10 @@ void WindowSized()
 	END_TASK();
 }
 
-// »æÖÆ½¥±äÉ«¾ØĞÎ
-// c Ô­É«
-// kh, ks ,kl É«²ÊµÄ HSL µ¥Î»ÏñËØ±ä»¯ÂÊ
-// ×¢£ºH ºÍ S µÄ½¥±ä²»ÄÜÊµÏÖÒìÉ«¹ı¶É
+// ç»˜åˆ¶æ¸å˜è‰²çŸ©å½¢
+// c åŸè‰²
+// kh, ks ,kl è‰²å½©çš„ HSL å•ä½åƒç´ å˜åŒ–ç‡
+// æ³¨ï¼šH å’Œ S çš„æ¸å˜ä¸èƒ½å®ç°å¼‚è‰²è¿‡æ¸¡
 void GradientRectangle(RECT rct, COLORREF c, float kh, float ks, float kl)
 {
 	float h, s, l;
@@ -2595,8 +1527,8 @@ void GradientRectangle(RECT rct, COLORREF c, float kh, float ks, float kl)
 	setlinecolor(nOldLineColor);
 }
 
-// »æÖÆ½¥±äÉ«¾ØĞÎ
-// c1, c2 ³õÊ¼ÑÕÉ«¡¢ÖÕÖ¹ÑÕÉ«
+// ç»˜åˆ¶æ¸å˜è‰²çŸ©å½¢
+// c1, c2 åˆå§‹é¢œè‰²ã€ç»ˆæ­¢é¢œè‰²
 void GradientRectangle(RECT rct, COLORREF c1, COLORREF c2)
 {
 	float h[2], s[2], l[2];
@@ -2610,9 +1542,9 @@ void GradientRectangle(RECT rct, COLORREF c1, COLORREF c2)
 	GradientRectangle(rct, c[0], kh, ks, kl);
 }
 
-// »æÖÆ½¥±äÉ«¾ØĞÎ
-// c ³õÊ¼ÑÕÉ«£¨Ö»ÓÃÓÚ H ºÍ S µÄ²ÉÑù£©
-// l1, l2 ³õÊ¼ÁÁ¶È¡¢ÖÕÖ¹ÁÁ¶È£¨°µ 0 ~ 1 ÁÁ£©
+// ç»˜åˆ¶æ¸å˜è‰²çŸ©å½¢
+// c åˆå§‹é¢œè‰²ï¼ˆåªç”¨äº H å’Œ S çš„é‡‡æ ·ï¼‰
+// l1, l2 åˆå§‹äº®åº¦ã€ç»ˆæ­¢äº®åº¦ï¼ˆæš— 0 ~ 1 äº®ï¼‰
 void GradientRectangle(RECT rct, COLORREF c, double l1, double l2)
 {
 	float h, s, l;
@@ -2620,10 +1552,10 @@ void GradientRectangle(RECT rct, COLORREF c, double l1, double l2)
 	GradientRectangle(rct, HSLtoRGB(h, s, (float)l1), 0, 0, (float)(l2 - l1) / (rct.right - rct.left));
 }
 
-// ¿ªÊ¼½çÃæ
+// å¼€å§‹ç•Œé¢
 void StartMenu(RsMap* pMap)
 {
-	HWND hStartMenuWnd = HiEasyX::initgraph_win32(640, 480, EW_NORMAL, L"¿ªÊ¼");
+	HWND hStartMenuWnd = HiEasyX::initgraph_win32(640, 480, EW_NORMAL, L"å¼€å§‹");
 	DisableResizing(true);
 
 	RECT rctBtn[2] = { {30, 140, 550, 240}, { 30,260,550,360 } };
@@ -2632,21 +1564,21 @@ void StartMenu(RsMap* pMap)
 	setbkcolor(RGB(40, 50, 60));
 	cleardevice();
 
-	settextstyle(38, 0, L"ºÚÌå");
+	settextstyle(38, 0, L"é»‘ä½“");
 	settextcolor(RGB(215, 70, 130));
 	WCHAR strTitle[] = L"Minecraft Redstone Simulator";
 	int nTitleWidth = textwidth(strTitle);
 	outtextxy(30, 40, strTitle);
-	settextstyle(20, 0, L"ËÎÌå");
+	settextstyle(20, 0, L"å®‹ä½“");
 	settextcolor(CLASSICGRAY);
 	outtextxy(30 + nTitleWidth - textwidth(strVersion), 80, strVersion);
-	settextstyle(16, 0, L"ËÎÌå");
+	settextstyle(16, 0, L"å®‹ä½“");
 	settextcolor(GRAY);
 	WCHAR strAuthor[] = L"by huidong <mailhuid@163.com>";
 	outtextxy(getwidth() - textwidth(strAuthor), getheight() - textheight(strAuthor), strAuthor);
 
 	setfillcolor(RGB(0, 0, 120));
-	settextstyle(34, 0, L"ËÎÌå");
+	settextstyle(34, 0, L"å®‹ä½“");
 	setbkmode(TRANSPARENT);
 	settextcolor(WHITE);
 	GradientRectangle(rctBtn[0], RGB(160, 80, 200), 0.6, 0.3);
@@ -2715,16 +1647,16 @@ end:
 int main(int argc, char* argv[])
 {
 	HiEasyX::SetCustomIcon(IDI_ICON1, IDI_ICON1);
-	SetConsoleTitle(L"Minecraft Redstone Simulator ÖÕ¶Ë");
+	SetConsoleTitle(L"Minecraft Redstone Simulator ç»ˆç«¯");
 
 	loadimages();
 
 	RsMap map = { 0,0,NULL };
 
-	// Èç¹ûÓĞÎÄ¼ş¡¢²ÎÊı´«Èë
+	// å¦‚æœæœ‰æ–‡ä»¶ã€å‚æ•°ä¼ å…¥
 	if (argc > 1)
 	{
-		printf("ÇëÉÔºó£¬´ò¿ªµØÍ¼ÖĞ¡­¡­");
+		printf("è¯·ç¨åï¼Œæ‰“å¼€åœ°å›¾ä¸­â€¦â€¦");
 
 		TCHAR* strFileName = new TCHAR[strlen(argv[1]) + 1];
 		memset(strFileName, 0, strlen(argv[1]) + 1);
@@ -2735,18 +1667,20 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		// Õı³£½øÈë¿ªÊ¼²Ëµ¥
+		// æ­£å¸¸è¿›å…¥å¼€å§‹èœå•
 		StartMenu(&map);
 	}
 
-	system("cls");
-	printf("µØÍ¼¼ÓÔØ³É¹¦¡£ÊäÈëÖ¸ÁîÒÔ²Ù×÷µØÍ¼£¬ÊäÈë help ²é¿´°ïÖú¡£\n");
+	ShowWindow(GetConsoleWindow(), SW_SHOW);
 
-	// ´´½¨Á½¸ö´°¿Ú
+	system("cls");
+	printf("åœ°å›¾åŠ è½½æˆåŠŸã€‚è¾“å…¥æŒ‡ä»¤ä»¥æ“ä½œåœ°å›¾ï¼Œè¾“å…¥ help æŸ¥çœ‹å¸®åŠ©ã€‚\n");
+
+	// åˆ›å»ºä¸¤ä¸ªçª—å£
 	hGraphicsWnd = HiEasyX::initgraph_win32(1024, 768, EW_SHOWCONSOLE, L"Minecraft Redstone Simulator");
 	hToolBarWnd = HiEasyX::initgraph_win32(nObjSize * 2, nObjSize * 4 + 100, EW_NORMAL, L"ToolBar");
 
-	// Tool Bar µÄ´°¿ÚÑùÊ½
+	// Tool Bar çš„çª—å£æ ·å¼
 	EnableToolWindowStyle(true);
 	DisableSystemMenu(true);
 	DisableResizing(true);
@@ -2757,19 +1691,19 @@ int main(int argc, char* argv[])
 	setbkmode(TRANSPARENT);
 	END_TASK();
 
-	bool bShowXY = true;		// ÊÇ·ñÏÔÊ¾·½¿é×ø±ê
-	bool bShowRuler = true;		// ×ø±êÏÔÊ¾·½Ê½
-	int offset_x = 0;			// µØÍ¼Æ«ÒÆÏÔÊ¾
+	bool bShowXY = true;		// æ˜¯å¦æ˜¾ç¤ºæ–¹å—åæ ‡
+	bool bShowRuler = true;		// åæ ‡æ˜¾ç¤ºæ–¹å¼
+	int offset_x = 0;			// åœ°å›¾åç§»æ˜¾ç¤º
 	int offset_y = 0;
-	double zoom = 1;			// µØÍ¼Ëõ·Å
-	int nSelect = RS_NULL;		// ¹¤¾ßÀ¸Ñ¡Ôñ
-	bool bFirst = true;			// ÊÇ·ñÎªµÚÒ»´ÎÔËĞĞ
+	double zoom = 1;			// åœ°å›¾ç¼©æ”¾
+	int nSelect = RS_NULL;		// å·¥å…·æ é€‰æ‹©
+	bool bFirst = true;			// æ˜¯å¦ä¸ºç¬¬ä¸€æ¬¡è¿è¡Œ
 
-	// ´¦ÀíÓÃ»§ CMD ÊäÈë
+	// å¤„ç†ç”¨æˆ· CMD è¾“å…¥
 	std::thread(CommandMessageLoop, &map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler).detach();
 
 	// >>>
-	// >>> ÏûÏ¢´¦Àí
+	// >>> æ¶ˆæ¯å¤„ç†
 	// >>>
 	while (HiEasyX::isAliveWindow(hGraphicsWnd))
 	{
@@ -2780,7 +1714,7 @@ int main(int argc, char* argv[])
 			RunRsMap(&map);
 		}
 
-		// ´°¿ÚÀ­ÉìÏûÏ¢´¦Àí
+		// çª—å£æ‹‰ä¼¸æ¶ˆæ¯å¤„ç†
 		if (HiEasyX::isWindowSizeChanged(hGraphicsWnd) || bFirst)
 		{
 			WindowSized();
@@ -2788,7 +1722,7 @@ int main(int argc, char* argv[])
 
 		if ((r & DM_TOOLBAR) || bFirst)
 		{
-			DrawToolBar(&nSelect);
+			DrawToolBar(nSelect);
 		}
 
 		if ((r & DM_DRAWMAP)

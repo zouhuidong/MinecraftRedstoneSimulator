@@ -50,6 +50,8 @@
     <ClCompile Include="HiEasyX\HiWindow.cpp">
       <Filter>HiEasyX</Filter>
     </ClCompile>
+    <ClCompile Include="redstone.cpp" />
+    <ClCompile Include="painter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -110,6 +112,8 @@
     <ClInclude Include="HiEasyX.h">
       <Filter>HiEasyX</Filter>
     </ClInclude>
+    <ClInclude Include="redstone.h" />
+    <ClInclude Include="painter.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MCRedstoneSimulator.rc" />
