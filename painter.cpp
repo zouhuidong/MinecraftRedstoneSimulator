@@ -12,8 +12,9 @@ IMAGE imgCursor;							// 鼠标（仅显示在工具栏）
 IMAGE imgPowder;							// 红石粉（仅显示在工具栏）
 IMAGE imgCross;								// 交叉线（仅显示在工具栏）
 
-COLORREF colorPower = RGB(200, 0, 0)/*RGB(0, 240, 0)*/;			// 有电的颜色
-COLORREF colorNoPower = RGB(100, 0, 0)/*RGB(100, 100, 100)*/;	// 无电的颜色
+bool bGreen = true;
+COLORREF colorPower = bGreen ? RGB(0, 240, 0) : RGB(200, 0, 0);			// 有电的颜色
+COLORREF colorNoPower = bGreen ? RGB(100, 100, 100) : RGB(100, 0, 0);	// 无电的颜色
 
 // 红石线粗
 int nPowderWidth = 7;
