@@ -277,6 +277,22 @@ void SetPowerRelation(RsMap* pMap, int x, int y, Power power)
 	}
 }
 
+// 设置红石地图电源关系
+void SetRsMapPowerRelation(RsMap* pMap)
+{
+	for (int i = 0; i < pMap->w; i++)
+	{
+		for (int j = 0; j < pMap->h; j++)
+		{
+			if (isPowerObj(&pMap->map[j][i]))
+			{
+				// 从单个电源出发
+				SetPowerRelation(pMap, i, j, Power({ i, j }));
+			}
+		}
+	}
+}
+
 // 确认电源状态
 // power		电源位置
 // flagFirst	是否为第一次调用
@@ -340,7 +356,7 @@ void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 	}
 }
 
-// 重置地图状态
+// 重置地图状态（不破坏电源状态）
 void ResetRsMap(RsMap* pMap)
 {
 	// 重置初始供电状态
@@ -348,13 +364,16 @@ void ResetRsMap(RsMap* pMap)
 	{
 		for (int j = 0; j < pMap->h; j++)
 		{
-			// 保留电源开关状态，红石火把设为有电，其余无电
+			// 保留电源开关状态
 			if (isPowerObj(&pMap->map[j][i]))
 			{
-				if (pMap->map[j][i].nType == RS_TORCHE)
+				// 修复 RS 锁存器的 BUG 时意识到，应当保留电源状态
+				// 所以此函数不破坏电源状态
+
+				/*if (pMap->map[j][i].nType == RS_TORCHE)
 				{
 					pMap->map[j][i].bPowered = true;
-				}
+				}*/
 			}
 			else
 			{
@@ -375,22 +394,6 @@ void ResetRsMap(RsMap* pMap)
 				delete[] pMap->map[j][i].pPowerList;
 				pMap->map[j][i].pPowerList = NULL;
 				pMap->map[j][i].nPowerCount = 0;
-			}
-		}
-	}
-}
-
-// 设置红石地图电源关系
-void SetRsMapPowerRelation(RsMap* pMap)
-{
-	for (int i = 0; i < pMap->w; i++)
-	{
-		for (int j = 0; j < pMap->h; j++)
-		{
-			if (isPowerObj(&pMap->map[j][i]) && pMap->map[j][i].bPowered)
-			{
-				// 从单个电源出发
-				SetPowerRelation(pMap, i, j, Power({ i, j }));
 			}
 		}
 	}
@@ -437,6 +440,9 @@ void ConductPower(RsMap* pMap)
 							pMap->map[j][i].bHorizonPowered |= p.horizon;
 							pMap->map[j][i].bUprightPowered |= p.upright;
 						}
+
+						// 不可跳出循环。可能还有其它方向的电源
+						//break;
 					}
 				}
 			}
@@ -447,7 +453,7 @@ void ConductPower(RsMap* pMap)
 // 运行红石地图
 void RunRsMap(RsMap* pMap)
 {
-	// 重置电源状态
+	// 重置地图（保留电源状态）
 	ResetRsMap(pMap);
 
 	// 联络导体和电源

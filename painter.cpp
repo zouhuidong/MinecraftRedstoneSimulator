@@ -235,7 +235,7 @@ void GetRsMapImage(
 
 						if (!bConnect)
 						{
-							fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth);
+							fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2);
 						}
 
 						//putimage(l * nObjSize, l * nObjSize, &powder);
