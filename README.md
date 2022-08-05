@@ -28,23 +28,23 @@ Windows 10 | Visual Studio 2022 | EasyX 20220610
 </div><br>
 
 <div align=center>
-<img src="./screenshots/非门.gif"><br>
-<b>非门</b>
-</div><br>
-
-<div align=center>
 <img src="./screenshots/与门.gif"><br>
 <b>与门</b>
 </div><br>
 
 <div align=center>
-<img src="./screenshots/搭建与门.gif"><br>
-<b>搭建与门</b>
+<img src="./screenshots/异或门.gif"><br>
+<b>异或门</b>
 </div><br>
 
 <div align=center>
-<img src="./screenshots/异或门.gif"><br>
-<b>异或门</b>
+<img src="./screenshots/非门.gif"><br>
+<b>非门</b>
+</div><br>
+
+<div align=center>
+<img src="./screenshots/搭建与门.gif"><br>
+<b>搭建与门</b>
 </div><br>
 
 <div align=center>
