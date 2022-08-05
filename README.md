@@ -22,41 +22,56 @@ Windows 10 | Visual Studio 2022 | EasyX 20220610
 
 下面将由简到繁，展示此模拟器实现的电路效果
 
-开始界面
+<div align=center>
+<img src="./screenshots/开始.png"><br>
+<b>开始界面</b>
+</div><br>
 
-![pic](./screenshots/开始.png)
+<div align=center>
+<img src="./screenshots/非门.gif"><br>
+<b>非门</b>
+</div><br>
 
-非门
+<div align=center>
+<img src="./screenshots/与门.gif"><br>
+<b>与门</b>
+</div><br>
 
-![pic](./screenshots/非门.gif)
+<div align=center>
+<img src="./screenshots/搭建与门.gif"><br>
+<b>搭建与门</b>
+</div><br>
 
-与门
+<div align=center>
+<img src="./screenshots/异或门.gif"><br>
+<b>异或门</b>
+</div><br>
 
-![pic](./screenshots/与门.gif)
+<div align=center>
+<img src="./screenshots/重设地图大小.gif"><br>
+<b>重设地图大小</b>
+</div><br>
 
-搭建与门
+<div align=center>
+<img src="./screenshots/点阵灯.gif"><br>
+<b>点阵灯</b>
+</div><br>
 
-![pic](./screenshots/搭建与门.gif)
+<div align=center>
+<img src="./screenshots/寄存器.gif"><br>
+<b>寄存器</b>
+</div><br>
 
-异或门
-
-![pic](./screenshots/异或门.gif)
-
-重设地图大小
-
-![pic](./screenshots/重设地图大小.gif)
-
-点阵灯
-
-![pic](./screenshots/点阵灯.gif)
-
-寄存器
-
-![pic](./screenshots/寄存器.gif)
-
-加法器
-
-![pic](./screenshots/加法器.gif)
+<div align=center>
+<img src="./screenshots/加法器.gif"><br>
+<b>加法器</b>
+</div><br>
 
 更复杂的电路还在等待您的实现~
+
+## 注意事项
+
+1. 中继器仅用于单向导电，不支持其它特性
+2. 红石火把必须用中继器充能才会熄灭
+3. 目前导入项目必须在终端使用 `import` 指令，详情可在终端输入 `help` 查看。
 
