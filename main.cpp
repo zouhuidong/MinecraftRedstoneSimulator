@@ -844,12 +844,20 @@ void HelpBox()
 	HWND hHelpWnd = HiEasyX::initgraph_win32(w, h, EW_NORMAL, L"帮助", nullptr, hGraphicsWnd);
 	DisableResizing(true);
 
-	RECT rctDoneBtn = { w / 2 - 25,h - 35,w / 2 + 25,h - 8 };
+	RECT rctOkBtn = { w / 2 - 25,h - 35,w / 2 + 25,h - 8 };
 
 	BEGIN_TASK();
 
+	setbkcolor(CLASSICGRAY);
+	cleardevice();
+	setbkmode(TRANSPARENT);
+
+	settextcolor(BLUE);
+
 	settextstyle(46, 0, L"宋体");
 	outtextxy(30, 20, L"MCRedStoneSimulator 使用说明");
+
+	settextcolor(BLACK);
 	settextstyle(22, 0, L"微软雅黑");
 	outtextxy(30, 80, L"本程序是 huidong <mailhuid@163.com> 制作的红石（电路）模拟软件");
 	outtextxy(30, 110, L"您可以在 ToolBar 中选择工具或元件，并在显示有电路图的窗口中使用它们来编辑电路图。");
@@ -862,9 +870,9 @@ void HelpBox()
 	outtextxy(30, 340, L"Github 项目地址：https://github.com/zouhuidong/MinecraftRedstoneSimulator");
 
 	setfillcolor(BLUE);
-	setbkmode(TRANSPARENT);
-	fillrectangle_RECT(rctDoneBtn);
-	outtextxy(rctDoneBtn.left + 4, rctDoneBtn.top + 3, L"Done");
+	fillrectangle_RECT(rctOkBtn);
+	settextcolor(WHITE);
+	outtextxy(rctOkBtn.left + 14, rctOkBtn.top + 3, L"OK");
 	END_TASK();
 	FLUSH_DRAW();
 
@@ -878,7 +886,7 @@ void HelpBox()
 			ExMessage msg = getmessage(EM_MOUSE);
 			if (msg.message == WM_LBUTTONUP)
 			{
-				if (isInRect(msg.x, msg.y, rctDoneBtn))
+				if (isInRect(msg.x, msg.y, rctOkBtn))
 				{
 					end = true;
 					break;
@@ -1287,17 +1295,19 @@ void StartMenu(RsMap* pMap)
 	RECT rctBtn[2] = { {30, 140, 550, 240}, { 30,260,550,360 } };
 	BEGIN_TASK_WND(hStartMenuWnd);
 
-	setbkcolor(RGB(40, 50, 60));
-	cleardevice();
+	GradientRectangle({ 0,0,640,480 }, RGB(40, 50, 60), 0.4, 0.3);
 
+	setbkmode(TRANSPARENT);
 	settextstyle(38, 0, L"黑体");
 	settextcolor(RGB(215, 70, 130));
 	WCHAR strTitle[] = L"Minecraft Redstone Simulator";
 	int nTitleWidth = textwidth(strTitle);
 	outtextxy(30, 40, strTitle);
+	
 	settextstyle(20, 0, L"宋体");
 	settextcolor(CLASSICGRAY);
 	outtextxy(30 + nTitleWidth - textwidth(strVersion), 80, strVersion);
+
 	settextstyle(16, 0, L"宋体");
 	settextcolor(GRAY);
 	WCHAR strAuthor[] = L"by huidong <mailhuid@163.com>";
@@ -1305,7 +1315,6 @@ void StartMenu(RsMap* pMap)
 
 	setfillcolor(RGB(0, 0, 120));
 	settextstyle(34, 0, L"宋体");
-	setbkmode(TRANSPARENT);
 	settextcolor(WHITE);
 	GradientRectangle(rctBtn[0], RGB(160, 80, 200), 0.6, 0.3);
 	GradientRectangle(rctBtn[1], RGB(160, 80, 200), 0.6, 0.3);
