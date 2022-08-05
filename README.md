@@ -4,20 +4,59 @@
 [![Blog](https://img.shields.io/badge/blog-huidong.xyz-green.svg)](http://huidong.xyz)
 [![EasyX](https://img.shields.io/badge/graphics-EasyX-orange.svg)](https://easyx.cn)
 
-一个使用easyx绘制图形界面，使用命令行操作地图的我的世界平面红石模拟器
+使用 EasyX 制作的平面红石电路模拟器
 
-程序由两个窗口组成，一个是用来输入的cmd窗口，另一个是用来显示地图的绘图窗口。
-一切的操作都需要在cmd窗口中输入指令来完成，当然也不会太麻烦，更多的信息请在打开程序后使用help指令查看。
+## 前言
 
+> 相信 MC 红石电路的强大是人尽皆知的。在 MC 中，你甚至可以用红石电路造出 CPU，实现计算机。
+>
+> 此程序模拟 MC 红石运行环境，支持平面红石电路设计和仿真运行，可以实现许多复杂的逻辑电路。
 
-效果：
+## 编译环境
 
-![](https://github.com/zouhuidong/MinecraftRedstoneSimulator/blob/main/screenshots/%E6%96%B0%E7%9A%84CROSS%E6%96%B9%E5%9D%97%E4%B8%8B%E7%9A%843x6%E7%82%B9%E9%98%B5%E7%81%AF.png)
+Windows 10 | Visual Studio 2022 | EasyX 20220610
 
-尽管这个模拟器是平面的，但他仍然可以实现许多在Minecraft中可以实现的东西。
+依赖库 [HiEasyX](https://www.github.com/zouhuidong/HiEasyX)
 
-更多请看 http://www.huidong.xyz/?mode=2&id=164
+## 模拟效果
 
-此外，程序还可以导入和导出项目（save语句），也可以将一个项目作为当前项目的子项目导入（import语句），详见帮助（help指令）。
+下面将由简到繁，展示此模拟器实现的电路效果
 
-程序目录下的maps文件夹有一些使用示例的地图，可以参考。
+开始界面
+
+![pic](./screenshots/开始.png)
+
+非门
+
+![pic](./screenshots/非门.gif)
+
+与门
+
+![pic](./screenshots/与门.gif)
+
+搭建与门
+
+![pic](./screenshots/搭建与门.gif)
+
+异或门
+
+![pic](./screenshots/异或门.gif)
+
+重设地图大小
+
+![pic](./screenshots/重设地图大小.gif)
+
+点阵灯
+
+![pic](./screenshots/点阵灯.gif)
+
+寄存器
+
+![pic](./screenshots/寄存器.gif)
+
+加法器
+
+![pic](./screenshots/加法器.gif)
+
+更复杂的电路还在等待您的实现~
+
