@@ -1,11 +1,11 @@
 ﻿///////////////////////////////////////////////
 //
 //	MCRedstoneSimulator
-//	main.cpp
 //	我的世界红石模拟器
+// 
 //	by huidong <mailkey@yeah.net>
 //
-//	最后修改：2022.3.26
+//	最后修改：2022.08.05
 //
 
 #include "resource.h"
@@ -20,7 +20,7 @@
 
 
 // 版本信息
-const WCHAR strVersion[] = L"Version 1.4";
+const WCHAR strVersion[] = L"Version 2.0";
 
 // 缩放限制
 #define MAX_ZOOM 2.0

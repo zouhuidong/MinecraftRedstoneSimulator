@@ -1,38 +1,16 @@
-<!--
-
-	该文档为 MCRedstoneSimulator 帮助文档
-	制作：huidong
-	网站：www.huidong.xyz
-	博客：http://www.huidong.xyz/?mode=2&id=164
-	github：https://github.com/zouhuidong/MinecraftRedstoneSimulator/
-
--->
-
-
-<html>
-
-	<head>
-		<title> MCRedstoneSimulator 帮助文档 </title>
-	</head>
-
-	<body>
+	<title>MCRedstoneSimulator 帮助文档</title>
+	
 	<h1>MCRedstoneSimulator 帮助文档</h1>
 	
-	<!--
-	
-	注意：
-	版本号，修改日期，更新日志
-	
-	-->
-	
-	<p><strong>Ver 1.4 - huidong 2020.10.25</strong></p>
+	<p><strong>Ver 2.0 - huidong 2022.08.05</strong></p>
 	<p>&nbsp; </p>
 	<h2>指令菜单</h2>
+	<b>（不再维护 CMD 操作，请尽量不要使用指令）</b>
 	<table border="1">
-		<tr>
-			<th width="300" scope="col">命令</th>
-			<th width="300" scope="col">参数</th>
-			<th width="700" scope="col">用途</th>
+		<tbody><tr>
+			<th scope="col" width="300">命令</th>
+			<th scope="col" width="300">参数</th>
+			<th scope="col" width="700">用途</th>
 		</tr>
 		<tr>
 			<th scope="row">xy</th>
@@ -180,11 +158,11 @@
 			<td>窗口宽 窗口高</td>
 			<td>设置地图显示窗口大小（单位：像素）</td>
 		</tr>
-	</table>
+	</tbody></table>
 	<p>&nbsp;</p>
 	<h2>物品名称表</h2>
 	<table width="700" border="1">
-		<tr>
+		<tbody><tr>
 			<th scope="col">英文代号</th>
 			<th scope="col">中文名称</th>
 		</tr>
@@ -206,7 +184,7 @@
 		</tr>
 		<tr>
 			<th scope="row">torche</th>
-			<td>红石火把</td>
+			<td>红石火把（仅可由中继器充能）</td>
 		</tr>
 		<tr>
 			<th scope="row">light</th>
@@ -218,13 +196,13 @@
 		</tr>
 		<tr>
 			<th scope="row">cross</th>
-			<td>交叉排线板（使两段交叉的线路交叉不相连）</td>
+			<td>交叉线（竖直方向和水平方向的线路不会连接到一起）</td>
 		</tr>
-	</table>
+	</tbody></table>
 	<p>&nbsp;</p>
 	<h2>朝向表</h2>
 	<table width="300" border="1">
-		<tr>
+		<tbody><tr>
 			<th scope="col">英文代号</th>
 			<th scope="col">中文名称</th>
 		</tr>
@@ -244,12 +222,10 @@
 			<th scope="row">right</th>
 			<td>向右</td>
 		</tr>
-	</table>
+	</tbody></table>
 	<p>&nbsp;</p>
-	<h2>关于</h2>
-	<p><br>
-	作者：huidong &lt;mailkey@yeah.net&gt;	</p>
-	<p>于 2020.10.4 研发内测版 Ver0.1，2020.10.5 研发正式版 Ver1.0<br>
+	<h2>关于</h2>作者：huidong &lt;mailhuid@163.com&gt;	
+	<p>于 2020.10.04 研发内测版 Ver0.1，2020.10.5 研发正式版 Ver1.0<br>
 	欢迎访问我的个人网站 <a href="http://www.huidong.xyz/">http://www.huidong.xyz/</a></p>
 	<p><br>
 	<strong>鸣谢：</strong><br>
@@ -259,7 +235,7 @@
 	<p>&nbsp;</p>
 	<h2>更新日志</h2>
 	<table width="900" border="1">
-		<tr>
+		<tbody><tr>
 			<th scope="col">版本</th>
 			<th scope="col">时间</th>
 			<th scope="col">更新内容</th>
@@ -313,13 +289,13 @@
 				<p>修复使用zoom指令缩放后地图显示范围未改变的bug。</p>
 				<p>修复在某种条件下CROSS方块信号断路的bug。</p>
 				<p>更新line指令，可以省略指令头。</p>
-				<p>新增下列指令：<br/>
-				exit<br/>
-				cmd_window_top<br/>
-				cmd_window_no_top<br/>
-				map_window_top<br/>
-				map_window_no_top<br/>
-				resize_cmd_window<br/>
+				<p>新增下列指令：<br>
+				exit<br>
+				cmd_window_top<br>
+				cmd_window_no_top<br>
+				map_window_top<br>
+				map_window_no_top<br>
+				resize_cmd_window<br>
 				resize_map_window
 				</p>
 				<p>修复打开项目后help指令无效的问题。</p>
@@ -334,9 +310,14 @@
 				<p>修复指令处理部分内存泄漏隐患。</p>
 			</td>
 		</tr>
-	</table>
+<tr>
+			<td>Ver 2.0<br></td>
+			<td>2022.08.04</td>
+			<td>对模拟器进行了全面更新，支持鼠标交互操作，优化算法和绘制机制，极大地提升了运行速度，支持了更多的红石电路。<br></td>
+		</tr>
+	</tbody></table>
 	<p>&nbsp;</p>
 	<p>&nbsp;</p>
-	</body>
+	
 
-</html>
+</body>
