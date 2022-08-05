@@ -6,15 +6,26 @@ IMAGE imgRod[2];							// 拉杆
 IMAGE imgButton[2];							// 按钮
 IMAGE imgTorche[2];							// 红石火把
 IMAGE imgLight[2];							// 红石灯
-IMAGE imgRelay[2];							// 红石中继器
-IMAGE imgRelayRotated[2][3];				// 旋转后的红石中继器
+IMAGE imgRelay[2][4];						// 旋转后的红石中继器
 IMAGE imgCursor;							// 鼠标（仅显示在工具栏）
-IMAGE imgPowder;							// 红石粉（仅显示在工具栏）
-IMAGE imgCross;								// 交叉线（仅显示在工具栏）
 
-bool bGreen = true;
-COLORREF colorPower = bGreen ? RGB(0, 240, 0) : RGB(200, 0, 0);			// 有电的颜色
-COLORREF colorNoPower = bGreen ? RGB(100, 100, 100) : RGB(100, 0, 0);	// 无电的颜色
+// 红石粉都是 0 表示横向，1 表示竖向
+// 红石粉线条（两种状态，两种样式，两个方向）
+IMAGE imgPowderLine[2][2][2];
+IMAGE imgPowderSingle[2];					// 单个红石粉
+IMAGE imgPowderCenter[2];					// 红石连接中心
+IMAGE imgPowderEdge[2][2];					// 红石连接边缘（两个方向）
+
+// 交叉线
+// 0 - 双向都不充能
+// 1 - 仅水平方向充能
+// 2 - 仅竖直方向充能
+// 3 - 双向都充能
+IMAGE imgCross[4];
+
+//bool bGreen = true;
+//COLORREF colorPower = bGreen ? RGB(0, 240, 0) : RGB(200, 0, 0);			// 有电的颜色
+//COLORREF colorNoPower = bGreen ? RGB(100, 100, 100) : RGB(100, 0, 0);	// 无电的颜色
 
 // 红石线粗
 int nPowderWidth = 7;
@@ -46,13 +57,39 @@ void loadimages()
 	loadimage(&imgLight[0], L"./res/objs/null/light/light.bmp");
 	loadimage(&imgLight[1], L"./res/objs/power/light/light.bmp");
 
-	loadimage(&imgRelay[0], L"./res/objs/null/relay/relay.bmp");
-	loadimage(&imgRelay[1], L"./res/objs/power/relay/relay.bmp");
+	loadimage(&imgRelay[0][0], L"./res/objs/null/relay/relay.bmp");
+	loadimage(&imgRelay[1][0], L"./res/objs/power/relay/relay.bmp");
 
 	// 旋转中继器
 	for (int i = 0; i < 2; i++)
-		for (int j = 0; j < 3; j++)
-			rotateimage(&imgRelayRotated[i][j], &imgRelay[i], PI / 2 * (j + 1));
+		for (int j = 1; j < 4; j++)
+			rotateimage(&imgRelay[i][j], &imgRelay[i][0], PI / 2 * j);
+
+	loadimage(&imgPowderLine[0][0][0], L"./res/objs/null/powder/powder_line_1.bmp");
+	loadimage(&imgPowderLine[0][1][0], L"./res/objs/null/powder/powder_line_2.bmp");
+	loadimage(&imgPowderLine[1][0][0], L"./res/objs/power/powder/powder_line_1.bmp");
+	loadimage(&imgPowderLine[1][1][0], L"./res/objs/power/powder/powder_line_2.bmp");
+	loadimage(&imgPowderSingle[0], L"./res/objs/null/powder/powder_single.bmp");
+	loadimage(&imgPowderSingle[1], L"./res/objs/power/powder/powder_single.bmp");
+	loadimage(&imgPowderCenter[0], L"./res/objs/null/powder/powder_center.bmp");
+	loadimage(&imgPowderCenter[1], L"./res/objs/power/powder/powder_center.bmp");
+	loadimage(&imgPowderEdge[0][0], L"./res/objs/null/powder/powder_edge.bmp");
+	loadimage(&imgPowderEdge[1][0], L"./res/objs/power/powder/powder_edge.bmp");
+
+	// 红石线
+	for (int i = 0; i < 2; i++)		// 充能状态
+		for (int j = 0; j < 2; j++)	// 线样式
+			rotateimage(&imgPowderLine[i][j][1], &imgPowderLine[i][j][0], PI / 2);
+	// 红石连接边缘
+	for (int i = 0; i < 2; i++)
+		rotateimage(&imgPowderEdge[i][1], &imgPowderEdge[i][0], -PI / 2);
+
+	loadimage(&imgCross[0], L"./res/objs/null/cross/cross.bmp");
+	loadimage(&imgCross[1], L"./res/objs/power/cross/cross_horizon.bmp");
+	loadimage(&imgCross[2], L"./res/objs/power/cross/cross_upright.bmp");
+	loadimage(&imgCross[3], L"./res/objs/power/cross/cross_both.bmp");
+
+	////// 加载文件完毕
 
 	// 确定图像大小
 	nObjSize = imgLight[0].getwidth();
@@ -63,25 +100,12 @@ void loadimages()
 	imgCursor.Resize(nObjSize, nObjSize);
 	POINT pCursor[9] = { {8,24},{8,3},{21,16},{21,18},{16,18},{19,25},{18,26},{16,26},{13,20} };
 	polygon(pCursor, 9);
+}
 
-	// 粉末
-	SetWorkingImage(&imgPowder);
-	imgPowder.Resize(nObjSize, nObjSize);
-	POINT pPowder[4] = { {10,27},{10,12},{19,12},{19,2} };
-	setlinestyle(PS_SOLID, nPowderWidth);
-	setlinecolor(colorPower);
-	polyline(pPowder, 4);
-
-	// 交叉线
-	SetWorkingImage(&imgCross);
-	imgCross.Resize(nObjSize, nObjSize);
-	setlinestyle(PS_SOLID, nPowderWidth);
-	setlinecolor(colorPower);
-	line(nHalfObjSize, 10, nHalfObjSize, nObjSize);
-	setlinecolor(colorNoPower);
-	POINT pCross[5] = { { 0, nHalfObjSize + 10 },{ 5, nHalfObjSize + 10 },
-		{ nHalfObjSize, nHalfObjSize / 2 + 10 },{ nObjSize - 5, nHalfObjSize + 10 },{ nObjSize, nHalfObjSize + 10 } };
-	polyline(pCross, 5);
+// 获取某个点应该使用的红石线类型
+int GetPowderLineStyle(int x, int y)
+{
+	return (x + y) & 1;
 }
 
 // 绘制单个物体到当前画布
@@ -108,81 +132,101 @@ void DrawSingleObject(RsMap* map, int x, int y)
 	case RS_NULL:	break;
 	case RS_POWDER:
 	{
-		// 该红石粉是否连接上周围物体
-		bool bConnect = false;
-		//SetWorkingImage(&powder);
+		// 红石粉连接状态（xxx_connected）
+		bool left_c = false;
+		bool right_c = false;
+		bool up_c = false;
+		bool down_c = false;
+		int count_c = 0;
 
-		if (me.bPowered)
-		{
-			setfillcolor(colorPower);
-			setlinecolor(colorPower);
-		}
-		else
-		{
-			setfillcolor(colorNoPower);
-			setlinecolor(colorNoPower);
-		}
-
-		//fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2 - 1);
-		setlinestyle(PS_SOLID, nPowderWidth);
-
-		// 实时绘制红石粉
-		if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
+		if (y - 1 >= 0 && up.nType != RS_NULL)
 		{
 			if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
 			{
-				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + line_distance);
-				bConnect = true;
+				up_c = true;
+				count_c++;
 			}
 		}
-		if (y + 1 < map->h && down.nType != RS_NULL)	// line to down
+		if (y + 1 < map->h && down.nType != RS_NULL)
 		{
 			if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
 			{
-				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize - line_distance);
-				bConnect = true;
+				down_c = true;
+				count_c++;
 			}
 		}
-		if (x - 1 >= 0 && left.nType != RS_NULL)		// line to left
+		if (x - 1 >= 0 && left.nType != RS_NULL)
 		{
 			if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
 			{
-				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + line_distance, draw_y + nHalfObjSize);
-				bConnect = true;
+				left_c = true;
+				count_c++;
 			}
 		}
-		if (x + 1 < map->w && right.nType != RS_NULL)	// line to right
+		if (x + 1 < map->w && right.nType != RS_NULL)
 		{
 			if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
 			{
-				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize - line_distance, draw_y + nHalfObjSize);
-				bConnect = true;
+				right_c = true;
+				count_c++;
 			}
 		}
 
-		if (!bConnect)
+		// 绘制
+		if (!count_c)
 		{
-			fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2);
+			putimage(draw_x, draw_y, &imgPowderSingle[me.bPowered]);
 		}
 
-		//putimage(l * nObjSize, l * nObjSize, &powder);
+		// 横向
+		else if ((left_c || right_c) && !(up_c || down_c))
+		{
+			putimage(draw_x, draw_y, &imgPowderLine[me.bPowered][GetPowderLineStyle(x, y)][0]);
+		}
+
+		// 竖向
+		else if (!(left_c || right_c) && (up_c || down_c))
+		{
+			putimage(draw_x, draw_y, &imgPowderLine[me.bPowered][GetPowderLineStyle(x, y)][1]);
+		}
+
+		// 横向和竖向
+		else
+		{
+			int edge_len = imgPowderEdge[0][0].getwidth();		// 边缘线大小
+			int distance = (nObjSize - edge_len) / 2;			// 间隙大小
+			
+			// 中心粉末
+			putimage(draw_x, draw_y, &imgPowderCenter[me.bPowered]);
+
+			// 边缘粉末
+			if (left_c)
+				putimage(draw_x, draw_y + distance, &imgPowderEdge[me.bPowered][0]);
+			if (right_c)
+				putimage(draw_x + nObjSize - edge_len, draw_y + distance, &imgPowderEdge[me.bPowered][0]);
+			if (up_c)
+				putimage(draw_x + distance, draw_y, &imgPowderEdge[me.bPowered][1]);
+			if (down_c)
+				putimage(draw_x + distance, draw_y + nObjSize - edge_len, &imgPowderEdge[me.bPowered][1]);
+		}
+
 	}
 	break;
 
 	case RS_ROD:		putimage(draw_x, draw_y, &imgRod[me.bPowered]);		break;
 	case RS_BUTTON:		putimage(draw_x, draw_y, &imgButton[me.bPowered]);	break;
 	case RS_TORCHE:		putimage(draw_x, draw_y, &imgTorche[me.bPowered]);	break;
-	case RS_LIGHT:		putimage(draw_x, draw_y, &imgLight[me.bPowered]);		break;
+	case RS_LIGHT:		putimage(draw_x, draw_y, &imgLight[me.bPowered]);	break;
 
 	case RS_RELAY:
 	{
 		IMAGE* p = nullptr;
 		switch (me.nTowards)
 		{
-		case RS_TO_UP:		p = &imgRelay[me.bPowered];				break;
-		case RS_TO_LEFT:	p = &imgRelayRotated[me.bPowered][0];		break;
-		case RS_TO_DOWN:	p = &imgRelayRotated[me.bPowered][1];		break;
-		case RS_TO_RIGHT:	p = &imgRelayRotated[me.bPowered][2];		break;
+		case RS_TO_UP:		p = &imgRelay[me.bPowered][0];		break;
+		case RS_TO_LEFT:	p = &imgRelay[me.bPowered][1];		break;
+		case RS_TO_DOWN:	p = &imgRelay[me.bPowered][2];		break;
+		case RS_TO_RIGHT:	p = &imgRelay[me.bPowered][3];		break;
 		}
 		putimage(draw_x, draw_y, p);
 	}
@@ -190,49 +234,14 @@ void DrawSingleObject(RsMap* map, int x, int y)
 
 	case RS_CROSS:
 	{
-		IMAGE imgCross(nObjSize, nObjSize);
-		IMAGE* pOld = GetWorkingImage();
-		SetWorkingImage(&imgCross);
-
-		setlinestyle(PS_SOLID, nPowderWidth);
-
-		if (me.bUprightPowered)
-		{
-			setfillcolor(colorPower);
-			setlinecolor(colorPower);
-		}
+		if(me.bHorizonPowered && me.bUprightPowered)
+			putimage(draw_x, draw_y, &imgCross[3]);
+		else if(me.bHorizonPowered)
+			putimage(draw_x, draw_y, &imgCross[1]);
+		else if (me.bUprightPowered)
+			putimage(draw_x, draw_y, &imgCross[2]);
 		else
-		{
-			setfillcolor(colorNoPower);
-			setlinecolor(colorNoPower);
-		}
-
-		// 竖向电线
-		line(nHalfObjSize, line_distance, nHalfObjSize, nObjSize - line_distance);
-
-		if (me.bHorizonPowered)
-		{
-			setfillcolor(colorPower);
-			setlinecolor(colorPower);
-		}
-		else
-		{
-			setfillcolor(colorNoPower);
-			setlinecolor(colorNoPower);
-		}
-
-		// 交叉线绘制点位
-		POINT pCrossHLine[3] = {
-			{ line_distance, nHalfObjSize },
-			{  nHalfObjSize, nHalfObjSize / 2 },
-			{  nObjSize - line_distance, nHalfObjSize }
-		};
-
-		// 横向电路（弯曲）
-		polyline(pCrossHLine, 3);
-
-		SetWorkingImage(pOld);
-		putimage(draw_x, draw_y, &imgCross);
+			putimage(draw_x, draw_y, &imgCross[0]);
 	}
 	break;
 
@@ -449,8 +458,8 @@ void DrawToolBar_painter(int indexSelected)
 {
 	cleardevice();
 	setlinestyle(PS_SOLID, 2);
-	IMAGE* pImg[8] = { &imgCursor,&imgPowder,&imgRod[0],&imgButton[0],
-		&imgTorche[0],&imgLight[0],&imgRelay[0],&imgCross };
+	IMAGE* pImg[8] = { &imgCursor,&imgPowderCenter[0],&imgRod[0],&imgButton[0],
+		&imgTorche[0],&imgLight[0],&imgRelay[0][0],&imgCross[2]};
 	for (int i = 0; i < 4; i++)
 	{
 		for (int j = 0; j < 2; j++)
