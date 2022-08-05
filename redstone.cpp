@@ -2,38 +2,6 @@
 
 #include "HiEasyX/HiFunc.h"
 
-// 初始化红石地图
-RsMap InitRsMap(int w, int h)
-{
-	RsMap map;
-	map.w = w;
-	map.h = h;
-
-	map.map = new RsObj * [h];
-
-	for (int i = 0; i < h; i++)
-	{
-		map.map[i] = new RsObj[w];
-	}
-
-	return map;
-}
-
-// 删除地图
-void DeleteRsMap(RsMap* map)
-{
-	if (map->map != NULL)
-	{
-		for (int i = 0; i < map->h; i++)
-		{
-			delete[] map->map[i];
-		}
-
-		delete[] map->map;
-		map->map = NULL;
-	}
-}
-
 
 bool operator==(POINT a, POINT b)
 {
@@ -72,7 +40,7 @@ int AddToPowerList(RsObj* pObj, Power* pPowerList, int nCount)
 	{
 		return 0;
 	}
-	if (pObj->pPowerList != NULL)
+	if (pObj->pPowerList != nullptr)
 	{
 		memcpy(pNewList, pObj->pPowerList, pObj->nPowerCount * sizeof(Power));
 		for (int i = 0; i < nCount; i++)
@@ -322,8 +290,8 @@ void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 
 		//
 		// 现在有两种方案。
-		// 1.	在 CheckPower 完全执行完毕后，再完全遍历每个电源的供电表，如果供电都无效，而自己野无效，则需要设置自己有效。
-		// 2.	直接在下方判断：如果全是无效电源，而自己也无效，则需要将自己设置为有效
+		// 1.（未测试）在 CheckPower 完全执行完毕后，再完全遍历每个电源的供电表，如果供电都无效，而自己野无效，则需要设置自己有效。
+		// 2.（正使用）直接在下方判断：如果全是无效电源，而自己也无效，则需要将自己设置为有效
 		//
 
 		// 若存在通电电源，则熄灭
@@ -341,17 +309,17 @@ void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 		{
 			pObj->bPowered = false;
 		}
-		else
+		else	// 若不存在任何有效电源，则恢复充能状态
 		{
 			pObj->bPowered = true;
 		}
 	}
 
 	// 位于递归头，回收内存
-	if (flagFirst && pVisited.pPowerList != NULL)
+	if (flagFirst && pVisited.pPowerList != nullptr)
 	{
 		delete[] pVisited.pPowerList;
-		pVisited.pPowerList = NULL;
+		pVisited.pPowerList = nullptr;
 		nCount = 0;
 	}
 }
@@ -389,10 +357,10 @@ void ResetRsMap(RsMap* pMap)
 			pMap->map[j][i].bHaveHorizonPower = false;
 
 			// 清空所有供电表
-			if (pMap->map[j][i].pPowerList != NULL)
+			if (pMap->map[j][i].pPowerList != nullptr)
 			{
 				delete[] pMap->map[j][i].pPowerList;
-				pMap->map[j][i].pPowerList = NULL;
+				pMap->map[j][i].pPowerList = nullptr;
 				pMap->map[j][i].nPowerCount = 0;
 			}
 		}
@@ -465,34 +433,4 @@ void RunRsMap(RsMap* pMap)
 	// 导电
 	ConductPower(pMap);
 }
-
-// 重设地图大小
-void ResizeRsMap(RsMap* map, int w, int h)
-{
-	RsMap newmap = InitRsMap(w, h);
-
-	int old_w = map->w;
-	int old_h = map->h;
-
-	if (old_w > w)
-	{
-		old_w = w;
-	}
-	if (old_h > h)
-	{
-		old_h = h;
-	}
-
-	for (int i = 0; i < old_w; i++)
-	{
-		for (int j = 0; j < old_h; j++)
-		{
-			newmap.map[j][i] = map->map[j][i];
-		}
-	}
-
-	DeleteRsMap(map);
-	*map = newmap;
-}
-
 

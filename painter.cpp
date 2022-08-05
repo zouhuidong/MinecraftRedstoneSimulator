@@ -84,19 +84,187 @@ void loadimages()
 	polyline(pCross, 5);
 }
 
+// 绘制单个物体到当前画布
+// 不绘制网格和坐标
+void DrawSingleObject(RsMap* map, int x, int y)
+{
+	// 方块，周围方块
+	RsObj me = map->map[y][x];
+	RsObj up, down, left, right;
+	if (y - 1 >= 0)			up = map->map[y - 1][x];
+	if (y + 1 < map->h)		down = map->map[y + 1][x];
+	if (x - 1 >= 0)			left = map->map[y][x - 1];
+	if (x + 1 < map->w)		right = map->map[y][x + 1];
 
-// 得到地图画面
+	// 当前方块绘制位置
+	int draw_x = x * nObjSize;
+	int draw_y = y * nObjSize;
+
+	// 绘制线间隔（因为粗线条会绘制到更外面一点）
+	int line_distance = 2;
+
+	switch (me.nType)
+	{
+	case RS_NULL:	break;
+	case RS_POWDER:
+	{
+		// 该红石粉是否连接上周围物体
+		bool bConnect = false;
+		//SetWorkingImage(&powder);
+
+		if (me.bPowered)
+		{
+			setfillcolor(colorPower);
+			setlinecolor(colorPower);
+		}
+		else
+		{
+			setfillcolor(colorNoPower);
+			setlinecolor(colorNoPower);
+		}
+
+		//fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2 - 1);
+		setlinestyle(PS_SOLID, nPowderWidth);
+
+		// 实时绘制红石粉
+		if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
+		{
+			if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
+			{
+				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + line_distance);
+				bConnect = true;
+			}
+		}
+		if (y + 1 < map->h && down.nType != RS_NULL)	// line to down
+		{
+			if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
+			{
+				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize - line_distance);
+				bConnect = true;
+			}
+		}
+		if (x - 1 >= 0 && left.nType != RS_NULL)		// line to left
+		{
+			if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
+			{
+				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + line_distance, draw_y + nHalfObjSize);
+				bConnect = true;
+			}
+		}
+		if (x + 1 < map->w && right.nType != RS_NULL)	// line to right
+		{
+			if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
+			{
+				line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize - line_distance, draw_y + nHalfObjSize);
+				bConnect = true;
+			}
+		}
+
+		if (!bConnect)
+		{
+			fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2);
+		}
+
+		//putimage(l * nObjSize, l * nObjSize, &powder);
+	}
+	break;
+
+	case RS_ROD:		putimage(draw_x, draw_y, &imgRod[me.bPowered]);		break;
+	case RS_BUTTON:		putimage(draw_x, draw_y, &imgButton[me.bPowered]);	break;
+	case RS_TORCHE:		putimage(draw_x, draw_y, &imgTorche[me.bPowered]);	break;
+	case RS_LIGHT:		putimage(draw_x, draw_y, &imgLight[me.bPowered]);		break;
+
+	case RS_RELAY:
+	{
+		IMAGE* p = nullptr;
+		switch (me.nTowards)
+		{
+		case RS_TO_UP:		p = &imgRelay[me.bPowered];				break;
+		case RS_TO_LEFT:	p = &imgRelayRotated[me.bPowered][0];		break;
+		case RS_TO_DOWN:	p = &imgRelayRotated[me.bPowered][1];		break;
+		case RS_TO_RIGHT:	p = &imgRelayRotated[me.bPowered][2];		break;
+		}
+		putimage(draw_x, draw_y, p);
+	}
+	break;
+
+	case RS_CROSS:
+	{
+		IMAGE imgCross(nObjSize, nObjSize);
+		IMAGE* pOld = GetWorkingImage();
+		SetWorkingImage(&imgCross);
+
+		setlinestyle(PS_SOLID, nPowderWidth);
+
+		if (me.bUprightPowered)
+		{
+			setfillcolor(colorPower);
+			setlinecolor(colorPower);
+		}
+		else
+		{
+			setfillcolor(colorNoPower);
+			setlinecolor(colorNoPower);
+		}
+
+		// 竖向电线
+		line(nHalfObjSize, line_distance, nHalfObjSize, nObjSize - line_distance);
+
+		if (me.bHorizonPowered)
+		{
+			setfillcolor(colorPower);
+			setlinecolor(colorPower);
+		}
+		else
+		{
+			setfillcolor(colorNoPower);
+			setlinecolor(colorNoPower);
+		}
+
+		// 交叉线绘制点位
+		POINT pCrossHLine[3] = {
+			{ line_distance, nHalfObjSize },
+			{  nHalfObjSize, nHalfObjSize / 2 },
+			{  nObjSize - line_distance, nHalfObjSize }
+		};
+
+		// 横向电路（弯曲）
+		polyline(pCrossHLine, 3);
+
+		SetWorkingImage(pOld);
+		putimage(draw_x, draw_y, &imgCross);
+	}
+	break;
+
+	}
+}
+
+// 绘制单个物体的坐标到当前画布
+void DrawCoordinateOfSingleObject(RsMap* map, int x, int y)
+{
+	TCHAR strX[12] = { 0 };
+	TCHAR strY[12] = { 0 };
+	wsprintf(strX, L"x:%d", x);
+	wsprintf(strY, L"y:%d", y);
+	outtextxy(x * nObjSize, y * nObjSize, strX);
+	outtextxy(x * nObjSize, y * nObjSize + textheight('0'), strY);
+}
+
 void GetRsMapImage(
-	IMAGE* pImg,			// 输出绘制的地图
-	IMAGE* pImgRulerX,		// 输出 X 轴标尺（如果选择绘制标尺）
-	IMAGE* pImgRulerY,		// 输出 Y 轴标尺（如果选择绘制标尺）
-	RsMap* map,				// 地图
-	bool redraw,			// 是否重新绘制地图
-	bool resize,			// 地图尺寸是否更新
-	bool bShowXY,			// 是否显示坐标
-	bool bShowRuler			// 是否以标尺形式显示坐标
+	IMAGE* pImg,
+	IMAGE* pImgRulerX,
+	IMAGE* pImgRulerY,
+	RsMap* map,
+	POINT* pChange,
+	int nChangeCount,
+	bool redraw,
+	bool resize,
+	bool bShowXY,
+	bool bShowRuler
 )
 {
+	int map_size = map->w * map->h;
+
 	// 图像属性
 
 	// 地图像素宽高
@@ -109,13 +277,13 @@ void GetRsMapImage(
 
 	IMAGE* pOld = GetWorkingImage();
 
-	if (redraw || resize)
+	if (resize)
 	{
 		SetWorkingImage(&imgMap);
 
 		imgMap.Resize(nMapCanvasWidth, nMapCanvasHeight);
-
 		cleardevice();
+
 		SetWorkingImage(pOld);
 	}
 	if (resize)
@@ -153,246 +321,127 @@ void GetRsMapImage(
 				cleardevice();
 			}
 
-			// 绘制地图方块
-			for (int x = 0; x < map->w; x++)
+			// 全部重绘模式
+			if (nChangeCount == map_size || resize)
 			{
-				//if (isOverscreen_X(x, nObjSize))		continue;
-
-				for (int y = 0; y < map->h; y++)
-				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
-
-					// 方块，周围方块
-					RsObj me = map->map[y][x];
-					RsObj up, down, left, right;
-					if (y - 1 >= 0)			up = map->map[y - 1][x];
-					if (y + 1 < map->h)		down = map->map[y + 1][x];
-					if (x - 1 >= 0)			left = map->map[y][x - 1];
-					if (x + 1 < map->w)		right = map->map[y][x + 1];
-
-					// 当前方块绘制位置
-					int draw_x = x * nObjSize;
-					int draw_y = y * nObjSize;
-
-					switch (me.nType)
-					{
-					case RS_NULL:	break;
-					case RS_POWDER:
-					{
-						// 该红石粉是否连接上周围物体
-						bool bConnect = false;
-						//SetWorkingImage(&powder);
-
-						if (me.bPowered)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						//fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2 - 1);
-						setlinestyle(PS_SOLID, nPowderWidth);
-
-						int distance = 2;
-
-						// 实时绘制红石粉
-						if (y - 1 >= 0 && up.nType != RS_NULL)			// line to up
-						{
-							if (up.nType != RS_RELAY || up.nTowards == RS_TO_UP || up.nTowards == RS_TO_DOWN)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + distance);
-								bConnect = true;
-							}
-						}
-						if (y + 1 < map->h && down.nType != RS_NULL)	// line to down
-						{
-							if (down.nType != RS_RELAY || down.nTowards == RS_TO_UP || down.nTowards == RS_TO_DOWN)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nHalfObjSize, draw_y + nObjSize - distance);
-								bConnect = true;
-							}
-						}
-						if (x - 1 >= 0 && left.nType != RS_NULL)		// line to left
-						{
-							if (left.nType != RS_RELAY || left.nTowards == RS_TO_LEFT || left.nTowards == RS_TO_RIGHT)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + distance, draw_y + nHalfObjSize);
-								bConnect = true;
-							}
-						}
-						if (x + 1 < map->w && right.nType != RS_NULL)	// line to right
-						{
-							if (right.nType != RS_RELAY || right.nTowards == RS_TO_LEFT || right.nTowards == RS_TO_RIGHT)
-							{
-								line(draw_x + nHalfObjSize, draw_y + nHalfObjSize, draw_x + nObjSize - distance, draw_y + nHalfObjSize);
-								bConnect = true;
-							}
-						}
-
-						if (!bConnect)
-						{
-							fillcircle(draw_x + nHalfObjSize, draw_y + nHalfObjSize, nPowderWidth / 2);
-						}
-
-						//putimage(l * nObjSize, l * nObjSize, &powder);
-					}
-					break;
-
-					case RS_ROD:		putimage(draw_x, draw_y, &imgRod[me.bPowered]);		break;
-					case RS_BUTTON:		putimage(draw_x, draw_y, &imgButton[me.bPowered]);	break;
-					case RS_TORCHE:		putimage(draw_x, draw_y, &imgTorche[me.bPowered]);	break;
-					case RS_LIGHT:		putimage(draw_x, draw_y, &imgLight[me.bPowered]);		break;
-
-					case RS_RELAY:
-					{
-						IMAGE* p = NULL;
-						switch (me.nTowards)
-						{
-						case RS_TO_UP:		p = &imgRelay[me.bPowered];				break;
-						case RS_TO_LEFT:	p = &imgRelayRotated[me.bPowered][0];		break;
-						case RS_TO_DOWN:	p = &imgRelayRotated[me.bPowered][1];		break;
-						case RS_TO_RIGHT:	p = &imgRelayRotated[me.bPowered][2];		break;
-						}
-						putimage(draw_x, draw_y, p);
-					}
-					break;
-
-					case RS_CROSS:
-					{
-						setlinestyle(PS_SOLID, nPowderWidth);
-
-						if (me.bUprightPowered)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						line(draw_x + nHalfObjSize, draw_y, draw_x + nHalfObjSize, draw_y + nObjSize);	// 竖向电路
-
-						if (me.bHorizonPowered)
-						{
-							setfillcolor(colorPower);
-							setlinecolor(colorPower);
-						}
-						else
-						{
-							setfillcolor(colorNoPower);
-							setlinecolor(colorNoPower);
-						}
-
-						// 交叉线绘制点位
-						POINT pCrossHLine[3] = {
-							{ draw_x,draw_y + nHalfObjSize },
-							{ draw_x + nHalfObjSize,draw_y + nHalfObjSize / 2 },
-							{ draw_x + nObjSize,draw_y + nHalfObjSize }
-						};
-
-						// 横向电路（弯曲）
-						polyline(pCrossHLine, 3);
-					}
-					break;
-
-					}
-
-					// 输出坐标模式
-					if (bShowXY && !bShowRuler)
-					{
-						TCHAR strX[12] = { 0 };
-						TCHAR strY[12] = { 0 };
-						wsprintf(strX, L"x:%d", x);
-						wsprintf(strY, L"y:%d", y);
-						outtextxy(x * nObjSize, y * nObjSize, strX);
-						outtextxy(x * nObjSize, y * nObjSize + textheight('0'), strY);
-					}
-				}
-			}
-
-			// 网格
-			if (bShowXY && bShowRuler)
-			{
-				// 网格线形
-				setlinecolor(GRAY);
-				setlinestyle(PS_DASH, 1);
-
-				for (int x = 0; x <= map->w; x++)
-				{
-					//if (isOverscreen_X(x, nObjSize))	continue;
-
-					int l = x * nObjSize;
-					if (x == map->w)	l--;
-					line(l, 0, l, getheight());
-				}
-				for (int y = 0; y <= map->h; y++)
-				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
-
-					int l = y * nObjSize;
-					if (y == map->h)	l--;
-					line(0, l, getwidth(), l);
-				}
-			}
-		}
-
-		// 大小改变
-		if (resize)
-		{
-			// 重绘标尺
-			if (bShowRuler)
-			{
-				// x 轴标尺
-				SetWorkingImage(&imgXRuler);
-				settextstyle(12, 0, L"黑体");
-				setbkmode(TRANSPARENT);
-				setbkcolor(BLUE);
-				cleardevice();
-				rectangle(0, 0, getwidth() - 1, getheight());
-
+				// 绘制地图方块
 				for (int x = 0; x < map->w; x++)
 				{
-					//if (isOverscreen_X(x, nObjSize))	continue;
+					for (int y = 0; y < map->h; y++)
+					{
+						DrawSingleObject(map, x, y);
 
-					line(x * nObjSize, 0, x * nObjSize, getheight());
-					TCHAR str[6] = { 0 };
-					wsprintf(str, L"%d", x);
-					outtextxy(x * nObjSize + 5, 5, str);
+						// 【输出坐标】模式
+						if (bShowXY && !bShowRuler)
+						{
+							DrawCoordinateOfSingleObject(map, x, y);
+						}
+					}
 				}
 
-				// y 轴标尺
-				SetWorkingImage(&imgYRuler);
-				settextstyle(10, 0, L"黑体");
-				setbkmode(TRANSPARENT);
-				setbkcolor(BLUE);
-				cleardevice();
-				rectangle(0, 0, getwidth(), getheight() - 1);
-
-				for (int y = 0; y < map->h; y++)
+				// 网格
+				if (bShowXY && bShowRuler)
 				{
-					//if (isOverscreen_Y(y, nObjSize))	continue;
+					// 网格线形
+					setlinecolor(GRAY);
+					setlinestyle(PS_DASH, 1);
 
-					line(0, y * nObjSize, getwidth(), y * nObjSize);
-					TCHAR str[6] = { 0 };
-					wsprintf(str, L"%d", y);
-					outtextxy(5, y * nObjSize + 5, str);
+					for (int x = 0; x <= map->w; x++)
+					{
+						int l = x * nObjSize;
+						if (x == map->w)	l--;
+						line(l, 0, l, getheight());
+					}
+					for (int y = 0; y <= map->h; y++)
+					{
+						int l = y * nObjSize;
+						if (y == map->h)	l--;
+						line(0, l, getwidth(), l);
+					}
+				}
+			}
+
+			// 部分重绘模式
+			else
+			{
+				for (int i = 0; i < nChangeCount; i++)
+				{
+					int x = pChange[i].x;
+					int y = pChange[i].y;
+
+					clearrectangle(x * nObjSize, y * nObjSize, (x + 1) * nObjSize, (y + 1) * nObjSize);
+
+					DrawSingleObject(map, x, y);
+
+					// 【输出坐标】模式
+					if (bShowXY && !bShowRuler)
+					{
+						DrawCoordinateOfSingleObject(map, x, y);
+					}
+
+					// 网格
+					if (bShowXY && bShowRuler)
+					{
+						// 网格线形
+						setlinecolor(GRAY);
+						setlinestyle(PS_DASH, 1);
+						rectangle(x * nObjSize, y * nObjSize, (x + 1) * nObjSize, (y + 1) * nObjSize);
+					}
+				}
+			}
+
+			// 大小改变
+			if (resize)
+			{
+				// 重绘标尺
+				if (bShowRuler)
+				{
+					// x 轴标尺
+					SetWorkingImage(&imgXRuler);
+					settextstyle(12, 0, L"黑体");
+					setbkmode(TRANSPARENT);
+					setbkcolor(BLUE);
+					cleardevice();
+					rectangle(0, 0, getwidth() - 1, getheight());
+
+					for (int x = 0; x < map->w; x++)
+					{
+						//if (isOverscreen_X(x, nObjSize))	continue;
+
+						line(x * nObjSize, 0, x * nObjSize, getheight());
+						TCHAR str[6] = { 0 };
+						wsprintf(str, L"%d", x);
+						outtextxy(x * nObjSize + 5, 5, str);
+					}
+
+					// y 轴标尺
+					SetWorkingImage(&imgYRuler);
+					settextstyle(10, 0, L"黑体");
+					setbkmode(TRANSPARENT);
+					setbkcolor(BLUE);
+					cleardevice();
+					rectangle(0, 0, getwidth(), getheight() - 1);
+
+					for (int y = 0; y < map->h; y++)
+					{
+						//if (isOverscreen_Y(y, nObjSize))	continue;
+
+						line(0, y * nObjSize, getwidth(), y * nObjSize);
+						TCHAR str[6] = { 0 };
+						wsprintf(str, L"%d", y);
+						outtextxy(5, y * nObjSize + 5, str);
+					}
 				}
 			}
 		}
+
+		// 绘制完毕
+		SetWorkingImage(pOld);
+
+		*pImg = imgMap;
+		*pImgRulerX = imgXRuler;
+		*pImgRulerY = imgYRuler;
 	}
-
-	// 绘制完毕
-	SetWorkingImage(pOld);
-
-	*pImg = imgMap;
-	*pImgRulerX = imgXRuler;
-	*pImgRulerY = imgYRuler;
 }
 
 // 绘制工具栏

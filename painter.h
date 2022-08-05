@@ -17,6 +17,8 @@ void GetRsMapImage(
 	IMAGE* pImgRulerX,		// 输出 X 轴标尺（如果选择绘制标尺）
 	IMAGE* pImgRulerY,		// 输出 Y 轴标尺（如果选择绘制标尺）
 	RsMap* map,				// 地图
+	POINT* pChange,			// 变更点数组
+	int nChangeCount,		// 变更点数量
 	bool redraw,			// 是否重新绘制地图
 	bool resize,			// 地图尺寸是否更新
 	bool bShowXY,			// 是否显示坐标

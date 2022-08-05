@@ -52,6 +52,7 @@
     </ClCompile>
     <ClCompile Include="redstone.cpp" />
     <ClCompile Include="painter.cpp" />
+    <ClCompile Include="map_operation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -114,6 +115,7 @@
     </ClInclude>
     <ClInclude Include="redstone.h" />
     <ClInclude Include="painter.h" />
+    <ClInclude Include="map_operation.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MCRedstoneSimulator.rc" />

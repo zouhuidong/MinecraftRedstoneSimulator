@@ -11,13 +11,13 @@
 #include "resource.h"
 
 #include "HiEasyX.h"
-#include "redstone.h"
+#include "map_operation.h"
 #include "painter.h"
 
 #include <stdio.h>
 #include <conio.h>
-#include <io.h>
 #include <direct.h>
+
 
 // 版本信息
 const WCHAR strVersion[] = L"Version 1.4";
@@ -25,7 +25,6 @@ const WCHAR strVersion[] = L"Version 1.4";
 // 缩放限制
 #define MAX_ZOOM 2.0
 #define MIN_ZOOM 0.1
-
 
 // 全局按钮位置信息
 RECT rctHelpBtn;
@@ -35,10 +34,6 @@ RECT rctResizeBtn;
 // 窗口句柄
 HWND hGraphicsWnd;	// 主绘图窗口
 HWND hToolBarWnd;	// 工具栏窗口
-
-
-
-
 
 
 // 选择文件
@@ -83,207 +78,6 @@ const WCHAR* SelectFile(bool isSave = false)
 	}
 
 	return _T("");
-}
-
-// 判断字符是否为数字
-bool isNum(char ch)
-{
-	return (ch >= '0' && ch <= '9') || ch == '-';
-}
-
-// 判读一字符串是否完全为数字
-bool isAllNum(const char* str)
-{
-	for (int i = 0; i < (int)strlen(str); i++)
-		if (!isNum(str[i]))
-			return false;
-	return true;
-}
-
-// 在当前进度往下读取一串数字
-bool ReadNum(const char* str, int& index, int& num)
-{
-	char* chNum = new char[strlen(str) + 1];
-	memset(chNum, 0, strlen(str) + 1);
-	int num_index = 0;
-
-	for (; index < (int)strlen(str); index++, num_index++)
-	{
-		if (isNum(str[index]))
-		{
-			chNum[num_index] = str[index];
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	if (num_index > 0)
-	{
-		num = atoi(chNum);
-
-		delete[] chNum;
-		return true;
-	}
-
-	delete[] chNum;
-	return false;
-}
-
-
-
-// 保存项目
-bool SaveProject(RsMap map, const WCHAR* strFileName)
-{
-	if (!lstrlen(strFileName))
-	{
-		return false;
-	}
-
-	FILE* fp;
-	int nSize = WideCharToMultiByte(CP_ACP, 0, strFileName, -1, NULL, 0, NULL, NULL);
-	char* chFileName = new char[nSize];
-	memset(chFileName, 0, nSize);
-	WideCharToMultiByte(CP_ACP, 0, strFileName, -1, chFileName, nSize, NULL, NULL);
-
-	if (fopen_s(&fp, chFileName, "wt+") != 0)
-	{
-		return false;
-	}
-
-	char chW[12] = { 0 };
-	char chH[12] = { 0 };
-	_itoa_s(map.w, chW, 10);
-	_itoa_s(map.h, chH, 10);
-
-	fputs(chW, fp);
-	fputs(" ", fp);
-	fputs(chH, fp);
-	fputs("\n", fp);
-
-	for (int i = 0; i < map.h; i++)
-	{
-		for (int j = 0; j < map.w; j++)
-		{
-			char chObj[6] = { 0 };
-			char chTowards[6] = { 0 };
-			char chPower = '0';
-			_itoa_s(map.map[i][j].nType, chObj, 10);
-			_itoa_s(map.map[i][j].nTowards, chTowards, 10);
-			if (map.map[i][j].bPowered && map.map[i][j].nType != RS_BUTTON)
-				chPower = '1';
-
-			fputs(chObj, fp);
-			fputc(',', fp);
-			fputs(chTowards, fp);
-			fputc(',', fp);
-			fputc(chPower, fp);
-
-			if (j + 1 != map.w)
-			{
-				fputc(' ', fp);
-			}
-		}
-
-		fputc('\n', fp);
-	}
-
-	fclose(fp);
-	return true;
-}
-
-// 打开项目
-RsMap OpenProject(const WCHAR* strFileName)
-{
-	if (!lstrlen(strFileName))
-	{
-		return RsMap{};
-	}
-
-	FILE* fp;
-	int nSize = WideCharToMultiByte(CP_ACP, 0, strFileName, -1, NULL, 0, NULL, NULL);
-	char* chFileName = new char[nSize];
-	memset(chFileName, 0, nSize);
-	WideCharToMultiByte(CP_ACP, 0, strFileName, -1, chFileName, nSize, NULL, NULL);
-
-	fopen_s(&fp, chFileName, "r+");
-	char* chProject = new char[_filelength(_fileno(fp)) + 1];
-	memset(chProject, 0, _filelength(_fileno(fp)) + 1);
-	fread_s(chProject, _filelength(_fileno(fp)) + 1, _filelength(_fileno(fp)), 1, fp);
-
-	fclose(fp);
-
-	// 分析文件
-
-	// 文件格式：
-	// 地图宽 地图高
-	// 物体id,朝向,能量 物体id,朝向,能量 ......
-
-	// 读取地图宽高
-	int nMap_w, nMap_h;
-	int index = 0;
-
-	if (!ReadNum(chProject, index, nMap_w))
-		return RsMap{};
-	index++;
-	if (!ReadNum(chProject, index, nMap_h))
-		return RsMap{};
-	index++;
-
-	RsMap map = InitRsMap(nMap_w, nMap_h);
-
-	for (int i = 0; i < nMap_h; i++)
-	{
-		for (int j = 0; j < nMap_w; j++)
-		{
-			int nType = RS_NULL;
-			int nTowards = RS_TO_UP;
-			int nPower = false;
-
-			// 读物品id
-			if (!ReadNum(chProject, index, nType))
-				return RsMap{};
-			index++;
-
-			// 读朝向
-			if (!ReadNum(chProject, index, nTowards))
-				return RsMap{};
-			index++;
-
-			// 读能量
-			if (!ReadNum(chProject, index, nPower))
-				return RsMap{};
-			index++;
-
-			RsObj rsobj;
-			rsobj.nType = nType;
-			rsobj.nTowards = nTowards;
-			rsobj.bPowered = (bool)nPower;
-
-			map.map[i][j] = rsobj;
-		}
-	}
-
-	return map;
-}
-
-// 导入项目
-// out 主项目
-// in 被导入项目
-// l, l 被导入项目位于主项目的左上角坐标
-void ImportProject(RsMap* out, RsMap in, int x, int y)
-{
-	for (int jo = y, ji = 0; jo < out->h && ji < in.h; jo++, ji++)
-	{
-		for (int io = x, ii = 0; io < out->w && ii < in.w; io++, ii++)
-		{
-			if (jo >= 0 && io >= 0)
-			{
-				out->map[jo][io] = in.map[ji][ii];
-			}
-		}
-	}
 }
 
 // 图片拉伸
@@ -353,25 +147,6 @@ IMAGE zoomImage(IMAGE* pImg, int newWidth, int newHeight = 0)
 	}
 
 	return newImg;
-}
-
-// 放置物品到地图
-void PutObjectToRsMap(RsMap* map, int x, int y, int object_id, int direction = RS_TO_UP)
-{
-	RsObj obj;
-	obj.nType = object_id;
-
-	switch (object_id)
-	{
-	case RS_TORCHE:
-		obj.bPowered = true;
-		break;
-	case RS_RELAY:
-		obj.nTowards = direction;
-		break;
-	}
-
-	map->map[y][x] = obj;
 }
 
 // 从命令中分离参数
@@ -511,8 +286,10 @@ bool PointIsInMap(RsMap* map, int x, int y)
 // 处理图像
 void Render(
 	RsMap* map,
-	bool redraw,
-	bool resize,
+	POINT* pChange,			// 地图变更点
+	int nChangeCount,		// 变更数量
+	bool redraw,			// 是否重绘（依据变更点重绘）
+	bool resize,			// 地图尺寸是否更新
 	bool zoom_changed,
 	int offset_x,
 	int offset_y,
@@ -526,7 +303,7 @@ void Render(
 
 	bool draw = redraw || resize;
 	if (draw)
-		GetRsMapImage(&imgMap, &imgRulerX, &imgRulerY, map, redraw, resize, bShowXY, bShowRuler);
+		GetRsMapImage(&imgMap, &imgRulerX, &imgRulerY, map, pChange, nChangeCount, redraw, resize, bShowXY, bShowRuler);
 	if (draw || zoom_changed)
 	{
 		// 缩放图像
@@ -590,89 +367,38 @@ void ClickButton(RsMap* map, int x, int y, int offset_x, int offset_y, double zo
 
 	if (map->map[y][x].nType == RS_BUTTON)
 	{
-		map->map[y][x].bPowered = true;
-		RunRsMap(map);
+		// 模拟按下再弹起
+		for (int i = 0; i <= 1; i++)
+		{
+			RsMap old;
+			POINT* pChange = nullptr;
+			int nChangeCount = 0;
+			CopyRsMap(&old, map);
 
-		Render(map, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// 手动重绘
+			map->map[y][x].bPowered = !i;
+			RunRsMap(map);
 
-		Sleep(delay);
-		map->map[y][x].bPowered = false;
-		RunRsMap(map);
+			CmpRsMapForRedraw(&old, map, &pChange, &nChangeCount);
+			Render(map, pChange, nChangeCount, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// 手动重绘
 
-		Render(map, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);
+			delete[] pChange;
+			pChange = nullptr;
+
+			if (!i)
+			{
+				Sleep(delay);
+			}
+		}
 	}
 }
 
-// 得到排序好且合法的坐标（针对两个坐标使用）
-void GetSortingPoint(RsMap* map, int* x1, int* y1, int* x2, int* y2)
+// 判读一字符串是否完全为数字
+bool isAllNum(const char* str)
 {
-	// 确保x1 <= x2, y1 <= y2
-	if (*x1 > *x2)
-	{
-		int temp = *x1;
-		*x1 = *x2;
-		*x2 = temp;
-	}
-	if (*y1 > *y2)
-	{
-		int temp = *y1;
-		*y1 = *y2;
-		*y2 = temp;
-	}
-
-	// 确保坐标合法
-	if (*x1 < 0)
-		*x1 = 0;
-	if (*x2 >= map->w)
-		*x2 = map->w - 1;
-	if (*y1 < 0)
-		*y1 = 0;
-	if (*y2 >= map->h)
-		*y2 = map->h - 1;
-}
-
-// 在红石地图中绘制红石直线（不得弯曲），可指定用以填充红石直线的物品
-// 返回是否绘制成功，绘制不成功的原因都是直线有弯曲
-bool LineRsMap(RsMap* map, int x1, int y1, int x2, int y2, int object)
-{
-	// 整理坐标
-	GetSortingPoint(map, &x1, &y1, &x2, &y2);
-
-	if (x1 == x2)
-	{
-		for (int i = y1; i <= y2; i++)
-		{
-			PutObjectToRsMap(map, x1, i, object);
-		}
-	}
-	else if (y1 == y2)
-	{
-		for (int i = x1; i <= x2; i++)
-		{
-			PutObjectToRsMap(map, i, y1, object);
-		}
-	}
-	else
-	{
-		return false;
-	}
-
+	for (int i = 0; i < (int)strlen(str); i++)
+		if (!isNum(str[i]))
+			return false;
 	return true;
-}
-
-// 清除红石地图中的一块区域
-void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2)
-{
-	// 整理坐标
-	GetSortingPoint(map, &x1, &y1, &x2, &y2);
-
-	for (int i = y1; i <= y2; i++)
-	{
-		for (int j = x1; j <= x2; j++)
-		{
-			PutObjectToRsMap(map, j, i, RS_NULL);
-		}
-	}
 }
 
 // 处理用户命令输入（阻塞）
@@ -690,10 +416,10 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 
 	// 参数数量
 	static int nArgsNum = 0;
-	static char** chCmdsArray = NULL;
+	static char** chCmdsArray = nullptr;
 
 	// 清理上一次的内存
-	if (chCmdsArray != NULL)
+	if (chCmdsArray != nullptr)
 	{
 		for (int i = 0; i < nArgsNum; i++)
 			delete[] chCmdsArray[i];
@@ -1090,7 +816,7 @@ void ProcessCommand(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 	{
 		int w = atoi(chCmdsArray[1]);
 		int h = atoi(chCmdsArray[2]);
-		Resize(NULL, w, h);
+		Resize(nullptr, w, h);
 	}
 
 	else
@@ -1115,7 +841,7 @@ void CommandMessageLoop(RsMap* map, int* offset_x, int* offset_y, double* zoom, 
 void HelpBox()
 {
 	int w = 820, h = 420;
-	HWND hHelpWnd = HiEasyX::initgraph_win32(w, h, EW_NORMAL, L"帮助", NULL, hGraphicsWnd);
+	HWND hHelpWnd = HiEasyX::initgraph_win32(w, h, EW_NORMAL, L"帮助", nullptr, hGraphicsWnd);
 	DisableResizing(true);
 
 	RECT rctDoneBtn = { w / 2 - 25,h - 35,w / 2 + 25,h - 8 };
@@ -1184,15 +910,15 @@ bool ResizeBoxWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, HINSTAN
 		hEdit[0] = CreateWindow(L"edit", strMapSize[0],
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			60, 30, 40, 20,
-			hWnd, (HMENU)IDC_EDIT1, hInstance, NULL);
+			hWnd, (HMENU)IDC_EDIT1, hInstance, 0);
 		hEdit[1] = CreateWindow(L"edit", strMapSize[1],
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			60, 55, 40, 20,
-			hWnd, (HMENU)IDC_EDIT2, hInstance, NULL);
+			hWnd, (HMENU)IDC_EDIT2, hInstance, 0);
 		hBtn = CreateWindow(L"button", L"Done",
 			WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER,
 			160, 40, 60, 30,
-			hWnd, (HMENU)IDC_BUTTON, hInstance, NULL);
+			hWnd, (HMENU)IDC_BUTTON, hInstance, 0);
 		break;
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
@@ -1259,8 +985,8 @@ enum DrawMsg
 {
 	DM_NULL = 0,		// 无重绘消息
 	DM_TOOLBAR = 1,		// 重绘工具栏
-	DM_DRAWMAP = 2,		// 绘制地图
-	DM_REDRAWMAP = 4,	// 重新绘制地图
+	DM_DRAWMAP = 2,		// 绘制地图（通常为平移消息）
+	DM_REDRAWMAP = 4,	// 重新绘制地图（此消息通常在操作方块时发出）
 	DM_RESIZEMAP = 8,	// 地图大小改变
 	DM_ZOOM = 16,		// 缩放
 };
@@ -1651,7 +1377,7 @@ int main(int argc, char* argv[])
 
 	loadimages();
 
-	RsMap map = { 0,0,NULL };
+	RsMap map;
 
 	// 如果有文件、参数传入
 	if (argc > 1)
@@ -1700,24 +1426,52 @@ int main(int argc, char* argv[])
 	bool bFirst = true;			// 是否为第一次运行
 
 	// 处理用户 CMD 输入
+	// 最好不要再用 CMD，很多功能不再维护
 	std::thread(CommandMessageLoop, &map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler).detach();
 
 	// >>>
 	// >>> 消息处理
 	// >>>
+
+	RsMap mapOld;					// 保存上一次的地图数据
+	POINT* pChange = nullptr;		// 变更点
+	int nChangeCount = 0;			// 变更数量统计
 	while (HiEasyX::isAliveWindow(hGraphicsWnd))
 	{
 		int r = ProcessMouseMsg(&map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler, &nSelect);
+		bool wnd_resize = false;
 
+		// 需要重新运行地图的情况
 		if ((r & DM_REDRAWMAP) || (r & DM_RESIZEMAP) || bFirst)
 		{
 			RunRsMap(&map);
+
+			int size = map.w * map.h;		// 地图大小
+
+			// 全部重绘的情况
+			if (r & DM_RESIZEMAP || bFirst)
+			{
+				nChangeCount = size;		// 标记数量为地图面积时，即标识全部重绘，无需设置数组内容
+			}
+
+			// 其余情况部分重绘。需要检测变更点
+			else
+			{
+				CmpRsMapForRedraw(&mapOld, &map, &pChange, &nChangeCount);
+
+			}
+
+#ifdef _DEBUG
+			printf("需要重绘方块数：%d\n", nChangeCount);
+#endif
+			CopyRsMap(&mapOld, &map);
 		}
 
 		// 窗口拉伸消息处理
 		if (HiEasyX::isWindowSizeChanged(hGraphicsWnd) || bFirst)
 		{
 			WindowSized();
+			wnd_resize = true;
 		}
 
 		if ((r & DM_TOOLBAR) || bFirst)
@@ -1725,7 +1479,8 @@ int main(int argc, char* argv[])
 			DrawToolBar(nSelect);
 		}
 
-		if ((r & DM_DRAWMAP)
+		if (wnd_resize
+			|| (r & DM_DRAWMAP)
 			|| (r & DM_REDRAWMAP)
 			|| (r & DM_RESIZEMAP)
 			|| (r & DM_ZOOM)
@@ -1733,6 +1488,8 @@ int main(int argc, char* argv[])
 		{
 			Render(
 				&map,
+				pChange,
+				nChangeCount,
 				(r & DM_REDRAWMAP) || bFirst,
 				(r & DM_RESIZEMAP) || bFirst,
 				(r & DM_ZOOM) || bFirst,
@@ -1743,6 +1500,12 @@ int main(int argc, char* argv[])
 		if (bFirst)
 		{
 			bFirst = false;
+		}
+
+		if (pChange)
+		{
+			delete[] pChange;
+			pChange = nullptr;
 		}
 
 		Sleep(50);

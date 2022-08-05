@@ -60,26 +60,18 @@ typedef struct RedstoneObject
 	bool bHaveHorizonPower = false;		// 水平方向是否存在供电源（仅用于交叉线）
 
 	int nPowerCount = 0;				// 供电数量
-	Power* pPowerList = NULL;			// 供电电源坐标
+	Power* pPowerList = nullptr;		// 供电电源坐标
 
 }RsObj;
 
 // 红石地图
 typedef struct RedstoneMap
 {
-	int w, h;		// 地图宽高
-	RsObj** map;	// 地图
+	int w = 0;				// 地图宽高
+	int h = 0;				// 地图宽高
+	RsObj** map = nullptr;	// 地图
 }RsMap;
 
-
-// 初始化红石地图
-RsMap InitRsMap(int w, int h);
-
-// 删除地图
-void DeleteRsMap(RsMap* map);
-
-// 重设地图大小
-void ResizeRsMap(RsMap* map, int w, int h);
 
 // 运行红石地图
 void RunRsMap(RsMap* pMap);

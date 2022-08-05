@@ -157,6 +157,7 @@
     <ClCompile Include="HiEasyX\HiStart.cpp" />
     <ClCompile Include="HiEasyX\HiWindow.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="map_operation.cpp" />
     <ClCompile Include="painter.cpp" />
     <ClCompile Include="redstone.cpp" />
   </ItemGroup>
@@ -180,6 +181,7 @@
     <ClInclude Include="HiEasyX\HiMusicMCI.h" />
     <ClInclude Include="HiEasyX\HiStart.h" />
     <ClInclude Include="HiEasyX\HiWindow.h" />
+    <ClInclude Include="map_operation.h" />
     <ClInclude Include="painter.h" />
     <ClInclude Include="redstone.h" />
     <ClInclude Include="resource.h" />
