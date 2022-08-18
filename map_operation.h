@@ -40,6 +40,6 @@ void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2);
 void CopyRsMap(RsMap* pDst, RsMap* pSrc);
 
 // 比较红石地图以重绘（比较依据：每个点的绘制效果）
-// pChange		用于记录变更点的数组地址（记得在外部 delete[]）
+// pChange		用于记录变更点的数组地址
 // 注意：两地图长宽须相等
-void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT** pChange, int* pCount);
+void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT* pChange, int* pCount);

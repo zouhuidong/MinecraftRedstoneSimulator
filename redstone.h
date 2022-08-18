@@ -60,7 +60,7 @@ typedef struct RedstoneObject
 	bool bHaveHorizonPower = false;		// 水平方向是否存在供电源（仅用于交叉线）
 
 	int nPowerCount = 0;				// 供电数量
-	Power* pPowerList = nullptr;		// 供电电源坐标
+	Power* pPowerList = nullptr;		// 供电电源坐标（释放时 delete[] 即可）
 
 }RsObj;
 

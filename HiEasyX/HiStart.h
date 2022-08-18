@@ -7,7 +7,7 @@
 #pragma once
 
 // 使用此宏取消 Release 模式的程序启动动画
-//#define _NO_START_ANIMATION_
+#define _NO_START_ANIMATION_
 
 namespace HiEasyX
 {

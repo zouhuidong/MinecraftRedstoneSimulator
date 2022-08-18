@@ -69,7 +69,8 @@ void ResizeRsMap(RsMap* map, int w, int h)
 		{
 			newmap.map[j][i] = map->map[j][i];
 
-			// 由于下面会删除原先的供电表，所以要预先将其置空
+			// 此处创建了每个物体的副本，最后再将原地图删除
+			// 删除地图后，物体的供电表会变成野指针，所以此处直接置空
 			newmap.map[j][i].pPowerList = nullptr;
 			newmap.map[j][i].nPowerCount = 0;
 		}
@@ -142,26 +143,17 @@ void ClearRsMap(RsMap* map, int x1, int y1, int x2, int y2)
 
 void CopyRsMap(RsMap* pDst, RsMap* pSrc)
 {
-	if (!pDst)
-	{
-		*pDst = InitRsMap(pSrc->w, pSrc->h);
-	}
-	else
-	{
-		ResizeRsMap(pDst, pSrc->w, pSrc->h);
-	}
+	ResizeRsMap(pDst, pSrc->w, pSrc->h);
 
 	for (int i = 0; i < pSrc->w; i++)
 	{
 		for (int j = 0; j < pSrc->h; j++)
 		{
 			pDst->map[j][i] = pSrc->map[j][i];
-			pDst->map[j][i].pPowerList = nullptr;
 			pDst->map[j][i].pPowerList = new Power[pSrc->map[j][i].nPowerCount];
 			memcpy(pDst->map[j][i].pPowerList, pSrc->map[j][i].pPowerList, pSrc->map[j][i].nPowerCount * sizeof(Power));
 		}
 	}
-
 }
 
 // 粗略判断两个物体在显示效果上是否相等（趋于不相等）
@@ -174,10 +166,9 @@ bool isEqualEffect(RsObj obj1, RsObj obj2)
 		&& obj1.bHorizonPowered == obj2.bHorizonPowered);
 }
 
-void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT** pChange, int* pCount)
+void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT* pChange, int* pCount)
 {
 	int count = 0;
-	POINT* p = new POINT[pNew->w * pNew->h];
 	POINT neighborhood[4] = { {-1,0},{1,0},{0,-1},{0,1} };
 	for (int i = 0; i < pNew->w; i++)
 	{
@@ -185,8 +176,26 @@ void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT** pChange, int* pCount)
 		{
 			if (!isEqualEffect(pOld->map[j][i], pNew->map[j][i]))
 			{
-				p[count] = { i,j };
+				// 防重
+				bool repeat = false;
+				for (int n = 0; n < count; n++)
+					if (pChange[n].x == i && pChange[n].y == j)
+					{
+						repeat = true;
+						break;
+					}
+				if (repeat)
+					continue;
+
+				pChange[count] = { i,j };
 				count++;
+
+				// 异常情况
+				if (count > pNew->w * pNew->h)
+				{
+					DebugBreak();
+					return;
+				}
 
 				// 由于一个物体的改变可能影响到四周的红石，所以连带邻近的红石重绘
 				for (int k = 0; k < 4; k++)
@@ -200,11 +209,14 @@ void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT** pChange, int* pCount)
 							// 若已存在此点则不再重复
 							bool repeat = false;
 							for (int n = 0; n < count; n++)
-								if (p[n].x == x && p[n].y == y)
+								if (pChange[n].x == x && pChange[n].y == y)
+								{
 									repeat = true;
+									break;
+								}
 							if (!repeat)
 							{
-								p[count] = { x,y };
+								pChange[count] = { x,y };
 								count++;
 							}
 						}
@@ -213,7 +225,6 @@ void CmpRsMapForRedraw(RsMap* pOld, RsMap* pNew, POINT** pChange, int* pCount)
 			}
 		}
 	}
-	*pChange = p;
 	*pCount = count;
 }
 

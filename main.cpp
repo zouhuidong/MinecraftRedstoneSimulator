@@ -371,14 +371,14 @@ void ClickButton(RsMap* map, int x, int y, int offset_x, int offset_y, double zo
 		for (int i = 0; i <= 1; i++)
 		{
 			RsMap old;
-			POINT* pChange = nullptr;
+			POINT* pChange = new POINT[map->w * map->h];
 			int nChangeCount = 0;
 			CopyRsMap(&old, map);
 
 			map->map[y][x].bPowered = !i;
 			RunRsMap(map);
 
-			CmpRsMapForRedraw(&old, map, &pChange, &nChangeCount);
+			CmpRsMapForRedraw(&old, map, pChange, &nChangeCount);
 			Render(map, pChange, nChangeCount, true, false, false, offset_x, offset_y, zoom, bShowXY, bShowRuler);	// 手动重绘
 
 			delete[] pChange;
@@ -1081,8 +1081,8 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 				{
 					HiEasyX::EndTask();
 
-					ResizeBox(map, hGraphicsWnd);
-					return_value |= DM_RESIZEMAP;
+					if (ResizeBox(map, hGraphicsWnd))
+						return_value |= DM_RESIZEMAP;
 
 					if (!HiEasyX::SetWorkingWindow(hGraphicsWnd))
 					{
@@ -1303,7 +1303,7 @@ void StartMenu(RsMap* pMap)
 	WCHAR strTitle[] = L"Minecraft Redstone Simulator";
 	int nTitleWidth = textwidth(strTitle);
 	outtextxy(30, 40, strTitle);
-	
+
 	settextstyle(20, 0, L"宋体");
 	settextcolor(CLASSICGRAY);
 	outtextxy(30 + nTitleWidth - textwidth(strVersion), 80, strVersion);
@@ -1445,36 +1445,42 @@ int main(int argc, char* argv[])
 	RsMap mapOld;					// 保存上一次的地图数据
 	POINT* pChange = nullptr;		// 变更点
 	int nChangeCount = 0;			// 变更数量统计
+	clock_t tRecord = clock();		// 定时运行地图，以支持时钟
+	const int nClockLen = 100;		// 时钟脉冲长度
+	int accumulate = nClockLen;		// 未处理的累加时间（设置初始值以保证第一次可运行）
 	while (HiEasyX::isAliveWindow(hGraphicsWnd))
 	{
 		int r = ProcessMouseMsg(&map, &offset_x, &offset_y, &zoom, &bShowXY, &bShowRuler, &nSelect);
 		bool wnd_resize = false;
+		clock_t tNow = clock();
 
-		// 需要重新运行地图的情况
-		if ((r & DM_REDRAWMAP) || (r & DM_RESIZEMAP) || bFirst)
-		{
+		accumulate += tNow - tRecord;
+
+		bool on_timer = accumulate >= nClockLen;	// 标识是否超过 clock 时间
+
+		auto funcRender = [&]() {
+			if (wnd_resize
+				|| on_timer
+				|| (r & DM_DRAWMAP)
+				|| (r & DM_REDRAWMAP)
+				|| (r & DM_RESIZEMAP)
+				|| (r & DM_ZOOM)
+				|| bFirst)
+			{
+				Render(
+					&map,
+					pChange,
+					nChangeCount,
+					(r & DM_REDRAWMAP) || on_timer || bFirst,
+					(r & DM_RESIZEMAP) || bFirst,
+					(r & DM_ZOOM) || bFirst,
+					offset_x, offset_y, zoom, bShowXY, bShowRuler
+				);
+			}
+		};
+
+		for (; accumulate >= nClockLen; accumulate -= nClockLen)
 			RunRsMap(&map);
-
-			int size = map.w * map.h;		// 地图大小
-
-			// 全部重绘的情况
-			if (r & DM_RESIZEMAP || bFirst)
-			{
-				nChangeCount = size;		// 标记数量为地图面积时，即标识全部重绘，无需设置数组内容
-			}
-
-			// 其余情况部分重绘。需要检测变更点
-			else
-			{
-				CmpRsMapForRedraw(&mapOld, &map, &pChange, &nChangeCount);
-
-			}
-
-#ifdef _DEBUG
-			printf("需要重绘方块数：%d\n", nChangeCount);
-#endif
-			CopyRsMap(&mapOld, &map);
-		}
 
 		// 窗口拉伸消息处理
 		if (HiEasyX::isWindowSizeChanged(hGraphicsWnd) || bFirst)
@@ -1488,37 +1494,48 @@ int main(int argc, char* argv[])
 			DrawToolBar(nSelect);
 		}
 
-		if (wnd_resize
-			|| (r & DM_DRAWMAP)
-			|| (r & DM_REDRAWMAP)
-			|| (r & DM_RESIZEMAP)
-			|| (r & DM_ZOOM)
-			|| bFirst)
+		// 需要重新运行地图的情况
+		if (on_timer || (r & DM_REDRAWMAP) || (r & DM_RESIZEMAP) || bFirst)
 		{
-			Render(
-				&map,
-				pChange,
-				nChangeCount,
-				(r & DM_REDRAWMAP) || bFirst,
-				(r & DM_RESIZEMAP) || bFirst,
-				(r & DM_ZOOM) || bFirst,
-				offset_x, offset_y, zoom, bShowXY, bShowRuler
-			);
+			int size = map.w * map.h;		// 地图大小
+
+			// 全部重绘的情况
+			if (r & DM_RESIZEMAP || bFirst)
+			{
+				nChangeCount = size;		// 标记数量为地图面积时，即标识全部重绘，无需设置数组内容
+
+				if (pChange)
+					delete[] pChange;
+
+				pChange = new POINT[size];
+				ZeroMemory(pChange, size * sizeof POINT);
+			}
+
+			// 其余情况部分重绘。需要检测变更点
+			else
+			{
+				CmpRsMapForRedraw(&mapOld, &map, pChange, &nChangeCount);
+			}
+
+#ifdef _DEBUG
+			printf("需要重绘方块数：%d\n", nChangeCount);
+#endif
+			CopyRsMap(&mapOld, &map);
 		}
+
+		funcRender();
 
 		if (bFirst)
-		{
 			bFirst = false;
-		}
 
-		if (pChange)
-		{
-			delete[] pChange;
-			pChange = nullptr;
-		}
+		// 记录时间
+		tRecord = tNow;
 
-		Sleep(50);
+		HiEasyX::DelayFPS(24);
 	}
+
+	if (pChange)
+		delete[] pChange;
 
 	closegraph();
 	return 0;

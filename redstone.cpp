@@ -63,7 +63,6 @@ int AddToPowerList(RsObj* pObj, Power* pPowerList, int nCount)
 
 	pObj->pPowerList = pNewList;
 	return sum;
-
 }
 
 // 判断一物体是否为信号源方块
@@ -262,29 +261,30 @@ void SetRsMapPowerRelation(RsMap* pMap)
 }
 
 // 确认电源状态
+// pVisited		外部传入，利用物体的 power 表存储已遍历点
 // power		电源位置
 // flagFirst	是否为第一次调用
-void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
+void CheckPower(RsMap* pMap, RsObj* pVisited, Power pPower)
 {
-	static RsObj pVisited;	// 利用物体的 power 表存储已遍历点
-	static int nCount = 0;
-
 	RsObj* pObj = &pMap->map[pPower.y][pPower.x];
 
-	// 只有火把需要确认状态
-	if (pObj->nType == RS_TORCHE)
+	// 需要确认状态的只有火把
+	// 如果已经检测过电源状态，则不再检测
+	if (
+		pObj->nType == RS_TORCHE
+		&& !SearchPowerInList(pVisited->pPowerList, pVisited->nPowerCount, pPower)
+		)
 	{
 		// 记录足迹
-		AddToPowerList(&pVisited, &pPower, 1);
-		nCount++;
+		AddToPowerList(pVisited, &pPower, 1);
 
 		// 递归确认所有电源的状态
 		for (int i = 0; i < pObj->nPowerCount; i++)
 		{
 			// 重复项不再检验，否则会递归爆栈
-			if (!SearchPowerInList(pVisited.pPowerList, nCount, pObj->pPowerList[i]))
+			if (!SearchPowerInList(pVisited->pPowerList, pVisited->nPowerCount, pObj->pPowerList[i]))
 			{
-				CheckPower(pMap, pObj->pPowerList[i]);
+				CheckPower(pMap, pVisited, pObj->pPowerList[i]);
 			}
 		}
 
@@ -313,14 +313,6 @@ void CheckPower(RsMap* pMap, Power pPower, bool flagFirst = false)
 		{
 			pObj->bPowered = true;
 		}
-	}
-
-	// 位于递归头，回收内存
-	if (flagFirst && pVisited.pPowerList != nullptr)
-	{
-		delete[] pVisited.pPowerList;
-		pVisited.pPowerList = nullptr;
-		nCount = 0;
 	}
 }
 
@@ -370,6 +362,8 @@ void ResetRsMap(RsMap* pMap)
 // 检查地图中的电源状态
 void CheckRsMapPower(RsMap* pMap)
 {
+	RsObj visited;	// 利用物体的电源表存储访问记录
+
 	// 审查电源状态（红石火把开关设置）
 	for (int i = 0; i < pMap->w; i++)
 	{
@@ -377,10 +371,14 @@ void CheckRsMapPower(RsMap* pMap)
 		{
 			if (isPowerObj(&pMap->map[j][i]))
 			{
-				CheckPower(pMap, Power({ i, j }), true);
+				CheckPower(pMap, &visited, Power({ i, j }));
 			}
 		}
 	}
+
+	// 回收内存
+	if (visited.pPowerList != nullptr)
+		delete[] visited.pPowerList;
 }
 
 // 根据已有的电源关系导电
