@@ -137,12 +137,27 @@ IMAGE zoomImage(IMAGE* pImg, int newWidth, int newHeight = 0)
 			int t = i * newWidth + j;
 			int xt = j * pImg->getwidth() / newWidth;
 			int yt = i * pImg->getheight() / newHeight;
-			newDr[i * newWidth + j] = oldDr[xt + yt * pImg->getwidth()];
-			// 实现逐行加载图片
 			byte r = GetRValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte g = GetGValue(oldDr[xt + yt * pImg->getwidth()]);
 			byte b = GetBValue(oldDr[xt + yt * pImg->getwidth()]);
 			newDr[i * newWidth + j] = RGB(r, g, b);
+			/*	COLORREF c = RGB(r, g, b);
+
+				float h, s, l;
+				RGBtoHSL(c, &h, &s, &l);
+				if (abs(h - 0.16) < 0.1)
+					l += 0.3;
+				if (h < 0.1 || h > 0.9)
+					l /= 2;
+				if (l > 1)
+					l = 1;
+				newDr[i * newWidth + j] = HSLtoRGB(h, s, l);*/
+
+
+				//if (r > 255)	r = 255;
+				//if (g > 255)	g = 255;
+				//if (g > 255)	g = 255;
+
 		}
 	}
 
@@ -330,6 +345,28 @@ void Render(
 		int render_offset_x = nMapOutX + offset_x + (int)(nRulerWidth * zoom);
 		int render_offset_y = nMapOutY + offset_y + (int)(nRulerHeight * zoom);
 		putimage(render_offset_x, render_offset_y, &imgMap_zoomed);
+
+		// 另一种渲染方式
+		if (false)
+		{
+			int put_offset_x = (render_offset_x - offset_x);
+			int put_offset_y = (render_offset_y - offset_y);
+
+			int ww = getwidth();
+			int hh = getheight();
+
+			int reserve_w = ww - put_offset_x;
+			int reserve_h = hh - put_offset_y;
+
+			IMAGE* pOld = GetWorkingImage();
+
+			IMAGE ii;
+			SetWorkingImage(&imgMap_zoomed);
+			getimage(&ii, -offset_x, -offset_y, reserve_w, reserve_h);
+
+			SetWorkingImage(pOld);
+			putimage(put_offset_x, put_offset_y, &ii);
+		}
 
 		// 复制绘制好的标尺
 		if (bShowXY && bShowRuler)
@@ -1097,16 +1134,21 @@ int ProcessMouseMsg(RsMap* map, int* offset_x, int* offset_y, double* zoom, bool
 			{
 				if (PointIsInMap(map, nClickMapX, nClickMapY))
 				{
+					// 使用上次的旋转方向进行放置
+					static int nLastToward = 0;
+
 					if (msgGraWnd.ctrl)	// Ctrl：旋转元件
 					{
 						if (++map->map[nClickMapY][nClickMapX].nTowards > 3)
 						{
 							map->map[nClickMapY][nClickMapX].nTowards = 0;
 						}
+						nLastToward = map->map[nClickMapY][nClickMapX].nTowards;
 					}
 					else if (*pSelect != RS_NULL)	// 选择元件，放置
 					{
 						map->map[nClickMapY][nClickMapX].nType = *pSelect;
+						map->map[nClickMapY][nClickMapX].nTowards = nLastToward;
 					}
 					return_value |= DM_REDRAWMAP;
 				}
@@ -1521,7 +1563,7 @@ int main(int argc, char* argv[])
 			printf("需要重绘方块数：%d\n", nChangeCount);
 #endif
 			CopyRsMap(&mapOld, &map);
-		}
+	}
 
 		funcRender();
 
@@ -1532,7 +1574,7 @@ int main(int argc, char* argv[])
 		tRecord = tNow;
 
 		HiEasyX::DelayFPS(24);
-	}
+}
 
 	if (pChange)
 		delete[] pChange;
