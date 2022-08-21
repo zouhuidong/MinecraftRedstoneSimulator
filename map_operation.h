@@ -17,6 +17,17 @@ void ResizeRsMap(RsMap* map, int w, int h);
 // 放置物品到地图
 void PutObjectToRsMap(RsMap* map, int x, int y, int object_id, int direction = RS_TO_UP);
 
+/*
+	地图文件（.rsp）新版格式规定：
+		从文件头部开始，前四个字节是宽，接下来四个字节是高。
+		然后每四个字节分别存放方块类型、朝向和充能状态，这样十二个字节为一组，顺序存放地图内容。
+*/
+
+// 判断是否为旧版地图
+// pBuf 文件内容
+// 依据：开头是数字字符，紧接着一个空格（宽 高的结构）
+bool isOldMap(void* pBuf, int len);
+
 // 打开项目
 RsMap OpenProject(const WCHAR* strFileName);
 
