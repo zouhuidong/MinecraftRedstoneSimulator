@@ -11,6 +11,7 @@ int main()
 
 	while (true)
 	{
+		system("cls");
 		printf("Minecraft Redstone Simulator Ver 2.1 地图转换器\n");
 		printf("地图路径：\n");
 
@@ -55,8 +56,10 @@ int main()
 		printf("地图尺寸：%d x %d\n", map.w, map.h);
 
 		printf("\n按任意键将地图转换为%s\n", old ? "新版" : "旧版");
-		_getch();
-
+		printf("按 ESC 取消转换\n");
+		if (_getch() == 27)
+			continue;
+		
 		// 备份
 		std::wstring wstrBackup = wstr;
 		wstrBackup.insert(wstrBackup.rfind(L'.'), L"_backup");
@@ -77,7 +80,6 @@ int main()
 
 		printf("\n完成。");
 		_getch();
-		system("cls");
 	}
 
 	return 0;
