@@ -12,9 +12,16 @@
 >
 > 此程序模拟 MC 红石运行环境，支持平面红石电路设计和仿真运行，可以实现许多复杂的逻辑电路。
 
+**此模拟器实现的红石和原生红石的区别：**
+1. 仅支持部分红石方块
+2. 中继器仅用于单向导电和充能红石火把，不支持其它特性
+2. 红石火把必须用中继器充能才会熄灭
+
 ## 编译环境
 
 Windows 10 | Visual Studio 2022 | EasyX 20220610
+
+此程序使用 EasyX 图形库实现绘制，图形库 [官网](https://easyx.cn)
 
 依赖库 [HiEasyX](https://www.github.com/zouhuidong/HiEasyX)
 
@@ -23,38 +30,8 @@ Windows 10 | Visual Studio 2022 | EasyX 20220610
 下面将由简到繁，展示此模拟器实现的电路效果
 
 <div align=center>
-<img src="./screenshots/开始.png"><br>
-<b>开始界面</b>
-</div><br>
-
-<div align=center>
-<img src="./screenshots/与门.gif"><br>
-<b>与门</b>
-</div><br>
-
-<div align=center>
-<img src="./screenshots/异或门.gif"><br>
-<b>异或门</b>
-</div><br>
-
-<div align=center>
-<img src="./screenshots/非门.gif"><br>
-<b>非门</b>
-</div><br>
-
-<div align=center>
 <img src="./screenshots/搭建与门.gif"><br>
 <b>搭建与门</b>
-</div><br>
-
-<div align=center>
-<img src="./screenshots/重设地图大小.gif"><br>
-<b>重设地图大小</b>
-</div><br>
-
-<div align=center>
-<img src="./screenshots/点阵灯.gif"><br>
-<b>点阵灯</b>
 </div><br>
 
 <div align=center>
@@ -67,6 +44,11 @@ Windows 10 | Visual Studio 2022 | EasyX 20220610
 <b>加法器</b>
 </div><br>
 
+<div align=center>
+<img src="./screenshots/数码管.gif"><br>
+<b>数码管</b>
+</div><br>
+
 更复杂的电路还在等待您的实现~
 
 ## 操作指南
@@ -76,7 +58,5 @@ Windows 10 | Visual Studio 2022 | EasyX 20220610
 
 ## 注意事项
 
-1. 中继器仅用于单向导电，不支持其它特性
-2. 红石火把必须用中继器充能才会熄灭
-3. 目前导入项目必须在终端使用 `import` 指令，详情可在终端输入 `help` 查看。
+若要导入已有地图到当前地图，请在程序的命令行窗口中使用 `import` 指令（需要在指令中指定导入坐标），详情可在命令行窗口输入 `help` 查看。
 
